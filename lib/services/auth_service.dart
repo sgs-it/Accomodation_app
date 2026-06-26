@@ -41,15 +41,23 @@ class AuthService {
     required String password,
     required String displayName,
   }) async {
-    // Use admin API (requires service role or admin function)
-    // We'll use a Supabase Edge Function or the admin client approach
-    // For now we use signUp + assign role
-    final result = await _client.auth.admin.createUser(AdminUserAttributes(
+    // We cannot use admin.createUser from the client with just the anon key.
+    // Instead, we use a temporary client to sign up the user without logging out the admin.
+    final tempClient = SupabaseClient(
+      _client.auth.currentSession != null 
+          ? _client.rest.url.replaceAll('/rest/v1', '') 
+          : 'https://bhmzebuvksntosaogzet.supabase.co',
+      _client.rest.headers['apikey'] ?? '',
+      authOptions: const AuthClientOptions(
+        autoRefreshToken: false,
+      ),
+    );
+
+    final result = await tempClient.auth.signUp(
       email: email,
       password: password,
-      emailConfirm: true,
-      userMetadata: {'display_name': displayName},
-    ));
+      data: {'display_name': displayName},
+    );
 
     final newUserId = result.user?.id;
     if (newUserId == null) throw Exception('Failed to create user');
@@ -58,7 +66,10 @@ class AuthService {
       'user_id': newUserId,
       'role': 'viewer',
     });
+    
+    tempClient.dispose();
   }
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
 }
+
