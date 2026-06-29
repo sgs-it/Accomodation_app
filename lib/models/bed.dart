@@ -14,6 +14,9 @@ class BedModel {
   // Filled by join
   final StaffModel? occupant;
   final String? assignmentId;
+  final String? roomCode;
+  final String? locationId;
+  final String? locationName;
 
   const BedModel({
     required this.id,
@@ -25,6 +28,9 @@ class BedModel {
     this.createdAt,
     this.occupant,
     this.assignmentId,
+    this.roomCode,
+    this.locationId,
+    this.locationName,
   });
 
   bool get isOccupied => status == 'FULL' || status == 'VACATION';
@@ -53,6 +59,20 @@ class BedModel {
       }
     }
 
+    String? roomCode;
+    String? locationId;
+    String? locationName;
+
+    if (json['room'] != null) {
+      final room = json['room'] as Map<String, dynamic>;
+      roomCode = room['room_code'] as String?;
+      if (room['location'] != null) {
+        final loc = room['location'] as Map<String, dynamic>;
+        locationId = loc['id'] as String?;
+        locationName = loc['name'] as String?;
+      }
+    }
+
     return BedModel(
       id: json['id'] as String,
       bedCode: json['bed_code'] as String,
@@ -65,6 +85,9 @@ class BedModel {
           : null,
       occupant: occupant,
       assignmentId: assignmentId,
+      roomCode: roomCode,
+      locationId: locationId,
+      locationName: locationName,
     );
   }
 
@@ -76,7 +99,14 @@ class BedModel {
         'status': status,
       };
 
-  BedModel copyWith({String? status, StaffModel? occupant, String? assignmentId}) {
+  BedModel copyWith({
+    String? status,
+    StaffModel? occupant,
+    String? assignmentId,
+    String? roomCode,
+    String? locationId,
+    String? locationName,
+  }) {
     return BedModel(
       id: id,
       bedCode: bedCode,
@@ -87,6 +117,9 @@ class BedModel {
       createdAt: createdAt,
       occupant: occupant ?? this.occupant,
       assignmentId: assignmentId ?? this.assignmentId,
+      roomCode: roomCode ?? this.roomCode,
+      locationId: locationId ?? this.locationId,
+      locationName: locationName ?? this.locationName,
     );
   }
 }

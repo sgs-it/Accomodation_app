@@ -74,4 +74,21 @@ class BedService {
         .map((e) => BedModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  /// Get all beds, optionally filtered by status, with joined room/location and occupant data
+  Future<List<BedModel>> getAllFiltered({String? status}) async {
+    var query = _client
+        .from('beds')
+        .select('*, room:rooms(*, location:locations(*)), bed_assignments(id, staff(*))');
+
+    if (status != null && status != 'all') {
+      query = query.eq('status', status.toUpperCase());
+    }
+
+    final response = await query.order('bed_code');
+
+    return (response as List)
+        .map((e) => BedModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 }

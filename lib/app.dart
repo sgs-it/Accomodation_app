@@ -19,6 +19,7 @@ import 'screens/shifts/shift_history_screen.dart';
 import 'screens/users/users_screen.dart';
 import 'screens/requests/pending_requests_screen.dart';
 import 'screens/shell/main_shell.dart';
+import 'screens/beds/beds_filter_screen.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
@@ -76,6 +77,11 @@ final _router = GoRouter(
         GoRoute(
             path: '/requests',
             builder: (ctx, state) => const PendingRequestsScreen()),
+        GoRoute(
+            path: '/beds-overview/:filter',
+            builder: (ctx, state) => BedsFilterScreen(
+                  filter: state.pathParameters['filter']!,
+                )),
       ],
     ),
   ],
