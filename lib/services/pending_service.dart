@@ -129,7 +129,6 @@ class PendingService {
     await _client.from('pending_changes').update({
       'status': 'approved',
       'admin_note': note,
-      'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', change.id);
   }
 
@@ -138,7 +137,6 @@ class PendingService {
     await _client.from('pending_changes').update({
       'status': 'rejected',
       'admin_note': reason,
-      'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', change.id);
   }
 }

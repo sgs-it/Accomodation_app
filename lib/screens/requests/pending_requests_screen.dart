@@ -292,7 +292,7 @@ class _RequestCard extends StatelessWidget {
     final noteCtrl = TextEditingController();
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dCtx) => AlertDialog(
         backgroundColor: AppTheme.bgCard,
         title: Text('Approve Request',
             style: GoogleFonts.inter(color: AppTheme.textPrimary)),
@@ -315,10 +315,10 @@ class _RequestCard extends StatelessWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(dCtx, false),
               child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dCtx, true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.success),
             child: const Text('Approve'),
@@ -336,7 +336,7 @@ class _RequestCard extends StatelessWidget {
     final reasonCtrl = TextEditingController();
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dCtx) => AlertDialog(
         backgroundColor: AppTheme.bgCard,
         title: Text('Reject Request',
             style: GoogleFonts.inter(color: AppTheme.textPrimary)),
@@ -350,10 +350,10 @@ class _RequestCard extends StatelessWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(dCtx, false),
               child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dCtx, true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.danger),
             child: const Text('Reject'),
