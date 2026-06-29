@@ -83,8 +83,13 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
     }
 
     final staff = _staff!;
-    final initials =
-        staff.name.split(' ').take(2).map((w) => w[0]).join().toUpperCase();
+    String getInitials(String name) {
+      if (name.trim().isEmpty) return '?';
+      final parts = name.trim().split(' ').where((w) => w.isNotEmpty).take(2);
+      if (parts.isEmpty) return '?';
+      return parts.map((w) => w[0].toUpperCase()).join();
+    }
+    final initials = getInitials(staff.name);
     final statusColor = AppTheme.staffStatusColor(staff.status);
 
     return Scaffold(

@@ -541,8 +541,13 @@ class _LeaveCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initials =
-        staff.name.split(' ').take(2).map((w) => w[0]).join().toUpperCase();
+    String getInitials(String name) {
+      if (name.trim().isEmpty) return '?';
+      final parts = name.trim().split(' ').where((w) => w.isNotEmpty).take(2);
+      if (parts.isEmpty) return '?';
+      return parts.map((w) => w[0].toUpperCase()).join();
+    }
+    final initials = getInitials(staff.name);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),

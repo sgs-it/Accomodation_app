@@ -192,8 +192,7 @@ class _StaffListScreenState extends State<StaffListScreen>
               ),
               child: Center(
                 child: Text(
-                  (rec['name'] as String? ?? 'S').split(' ').take(2)
-                      .map((w) => w[0]).join().toUpperCase(),
+                  _getInitials(rec['name'] as String?),
                   style: GoogleFonts.inter(
                       color: AppTheme.primary,
                       fontSize: 28,
@@ -226,6 +225,13 @@ class _StaffListScreenState extends State<StaffListScreen>
         ],
       ),
     );
+  }
+
+  String _getInitials(String? name) {
+    if (name == null || name.trim().isEmpty) return '?';
+    final parts = name.trim().split(' ').where((w) => w.isNotEmpty).take(2);
+    if (parts.isEmpty) return '?';
+    return parts.map((w) => w[0].toUpperCase()).join();
   }
 
   Widget _infoTile(IconData icon, String label, String value) {
@@ -440,7 +446,14 @@ class _StaffCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = AppTheme.staffStatusColor(staff.status);
-    final initials = staff.name.split(' ').take(2).map((w) => w[0]).join().toUpperCase();
+    
+    String getInitials(String name) {
+      if (name.trim().isEmpty) return '?';
+      final parts = name.trim().split(' ').where((w) => w.isNotEmpty).take(2);
+      if (parts.isEmpty) return '?';
+      return parts.map((w) => w[0].toUpperCase()).join();
+    }
+    final initials = getInitials(staff.name);
 
     return GestureDetector(
       onTap: onTap,
