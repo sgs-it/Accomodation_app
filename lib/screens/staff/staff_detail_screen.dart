@@ -112,9 +112,16 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
                 } else if (val == 'returned') {
                   await _staffService.markReturned(staff.id);
                   _load();
+                } else if (val == 'edit') {
+                  _showEditStaffDialog(context, staff);
                 }
               },
               itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Text('Edit Details',
+                      style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+                ),
                 if (staff.status == 'Active')
                   PopupMenuItem(
                     value: 'leave',
@@ -232,6 +239,103 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
           else
             ..._shifts.map((shift) => _ShiftHistoryTile(shift: shift)),
         ],
+      ),
+    );
+  }
+
+  void _showEditStaffDialog(BuildContext ctx, StaffModel staff) {
+    final nameCtrl = TextEditingController(text: staff.name);
+    final staffIdCtrl = TextEditingController(text: staff.staffId);
+    final phoneCtrl = TextEditingController(text: staff.phone ?? '');
+    final nationalityCtrl = TextEditingController(text: staff.nationality ?? '');
+    String status = staff.status;
+
+    showDialog(
+      context: ctx,
+      builder: (dCtx) => StatefulBuilder(
+        builder: (dCtx, setS) => AlertDialog(
+          backgroundColor: AppTheme.bgCard,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Edit Staff',
+              style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(labelText: 'Name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: staffIdCtrl,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(labelText: 'Staff ID'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(labelText: 'Phone (optional)'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nationalityCtrl,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(labelText: 'Nationality (optional)'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: status,
+                  dropdownColor: AppTheme.bgCard,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(labelText: 'Status'),
+                  items: const [
+                    DropdownMenuItem(value: 'Active', child: Text('Active')),
+                    DropdownMenuItem(value: 'On Leave', child: Text('On Leave')),
+                    DropdownMenuItem(value: 'Inactive', child: Text('Inactive')),
+                  ],
+                  onChanged: (v) => setS(() => status = v!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dCtx),
+              child: Text('Cancel',
+                  style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameCtrl.text.trim();
+                final sId = staffIdCtrl.text.trim();
+                if (name.isEmpty || sId.isEmpty) return;
+
+                Navigator.pop(dCtx);
+                try {
+                  await _staffService.update(staff.id, {
+                    'name': name,
+                    'staff_id': sId,
+                    'phone': phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                    'nationality': nationalityCtrl.text.trim().isEmpty ? null : nationalityCtrl.text.trim(),
+                    'status': status,
+                  });
+                  await _load();
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text('Error updating staff: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
   }
