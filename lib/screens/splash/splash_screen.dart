@@ -37,10 +37,10 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _navigate() async {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
-    final session = Supabase.instance.client.auth.currentSession;
-    if (session != null) {
-      context.go('/dashboard');
-    } else {
+    try {
+      await Supabase.instance.client.auth.signOut();
+    } catch (_) {}
+    if (mounted) {
       context.go('/login');
     }
   }
