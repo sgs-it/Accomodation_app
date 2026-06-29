@@ -1,6 +1,5 @@
-// lib/services/auth_service.dart
-
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/constants.dart';
 
 
 enum UserRole { admin, staff, unknown }
@@ -67,8 +66,8 @@ class AuthService {
     final email = role == 'admin' ? identifier : resolveEmail(identifier);
 
     final tempClient = SupabaseClient(
-      'https://bhmzebuvksntosaogzet.supabase.co',
-      _client.rest.headers['apikey'] ?? '',
+      supabaseUrl,
+      supabaseAnonKey,
       authOptions: const AuthClientOptions(
         autoRefreshToken: false,
         authFlowType: AuthFlowType.implicit,
