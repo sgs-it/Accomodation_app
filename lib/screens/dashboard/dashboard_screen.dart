@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../services/location_service.dart';
+import '../../services/export_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -48,11 +49,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
         actions: [
           Consumer<AppProvider>(
             builder: (_, p, __) => p.isAdmin
-                ? IconButton(
-                    icon: const Icon(Icons.person_add_outlined,
-                        color: AppTheme.textSecondary),
-                    tooltip: 'Manage Users',
-                    onPressed: () => context.go('/users'),
+                ? Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.download_rounded, color: AppTheme.textSecondary),
+                        tooltip: 'Export Excel',
+                        onPressed: () async {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Generating Excel export...')),
+                          );
+                          try {
+                            await ExportService().exportData();
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Export failed: $e')),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.person_add_outlined,
+                            color: AppTheme.textSecondary),
+                        tooltip: 'Manage Users',
+                        onPressed: () => context.go('/users'),
+                      ),
+                    ],
                   )
                 : const SizedBox.shrink(),
           ),
