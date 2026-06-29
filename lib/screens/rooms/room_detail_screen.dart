@@ -533,8 +533,10 @@ class _StaffListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final occupant = bed.occupant!;
-    final statusColor = AppTheme.staffStatusColor(occupant.status);
+    final occupant = bed.occupant;
+    final statusColor = occupant != null 
+        ? AppTheme.staffStatusColor(occupant.status) 
+        : AppTheme.warning;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -549,10 +551,10 @@ class _StaffListTile extends StatelessWidget {
           backgroundColor: AppTheme.primary.withOpacity(0.2),
           child: const Icon(Icons.person, color: AppTheme.primary, size: 20),
         ),
-        title: Text(occupant.name,
+        title: Text(occupant?.name ?? 'Unknown Staff (Data Error)',
             style: GoogleFonts.inter(
                 color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-        subtitle: Text('ID: ${occupant.staffId} · Bed: ${bed.bedCode}',
+        subtitle: Text('ID: ${occupant?.staffId ?? 'N/A'} · Bed: ${bed.bedCode}',
             style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12)),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -560,7 +562,7 @@ class _StaffListTile extends StatelessWidget {
             color: statusColor.withOpacity(0.12),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Text(occupant.status,
+          child: Text(occupant?.status ?? 'UNKNOWN',
               style: GoogleFonts.inter(
                   color: statusColor, fontSize: 11, fontWeight: FontWeight.w700)),
         ),
