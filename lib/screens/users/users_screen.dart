@@ -34,7 +34,15 @@ class _UsersScreenState extends State<UsersScreen> {
     final id   = _staffIdCtrl.text.trim();
     final pass = _passCtrl.text;
     final name = _nameCtrl.text.trim();
-    if (id.isEmpty || pass.isEmpty || name.isEmpty) return;
+    if (id.isEmpty || pass.isEmpty || name.isEmpty) {
+      setState(() => _message = '✗ All fields are required.');
+      return;
+    }
+
+    if (pass.length < 6) {
+      setState(() => _message = '✗ Password must be at least 6 characters long.');
+      return;
+    }
     
     if (_selectedRole == 'admin' && !id.contains('@')) {
       setState(() => _message = '✗ Admin accounts must use a valid email address.');

@@ -57,10 +57,18 @@ class _LoginScreenState extends State<LoginScreen>
       await provider.init();
       if (mounted) context.go('/dashboard');
     } catch (e) {
+      final String errorStr = e.toString().toLowerCase();
       setState(() {
-        _error = _isStaffLogin
-            ? 'Invalid Staff ID or password. Try your Occupant ID and Bed ID.'
-            : 'Invalid email or password. Please try again.';
+        if (errorStr.contains('socketexception') || 
+            errorStr.contains('network') || 
+            errorStr.contains('failed host lookup') ||
+            errorStr.contains('clientexception')) {
+          _error = 'Network error. Please check your internet connection and try again.';
+        } else {
+          _error = _isStaffLogin
+              ? 'Invalid Staff ID or password. Try your Occupant ID and Bed ID.'
+              : 'Invalid email or password. Please try again.';
+        }
       });
     } finally {
       if (mounted) setState(() => _loading = false);
