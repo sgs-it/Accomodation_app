@@ -81,31 +81,6 @@ class _UsersScreenState extends State<UsersScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Info banner
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, color: AppTheme.primary, size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Staff accounts are usually created automatically via bulk import. '
-                      'Use this form to manually create accounts for staff or other admins.',
-                      style: GoogleFonts.inter(
-                          color: AppTheme.textSecondary, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
-
             Text('New Account',
                 style: GoogleFonts.inter(
                     color: AppTheme.textPrimary,
