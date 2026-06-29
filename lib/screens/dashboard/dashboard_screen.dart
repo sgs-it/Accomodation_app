@@ -50,6 +50,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Consumer<AppProvider>(
             builder: (_, p, __) => p.isAdmin
                 ? Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
                         icon: const Icon(Icons.download_rounded, color: AppTheme.textSecondary),
