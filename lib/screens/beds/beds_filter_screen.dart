@@ -240,7 +240,7 @@ class _BedListTile extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.divider),
+        side: const BorderSide(color: AppTheme.divider),
       ),
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
