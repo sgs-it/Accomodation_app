@@ -36,9 +36,16 @@ class BedModel {
 
     // Handle joined bed_assignments → staff
     if (json['bed_assignments'] != null) {
-      final assignments = json['bed_assignments'] as List;
-      if (assignments.isNotEmpty) {
-        final assignment = assignments.first as Map<String, dynamic>;
+      final dynamic assignmentsRaw = json['bed_assignments'];
+      Map<String, dynamic>? assignment;
+      
+      if (assignmentsRaw is List && assignmentsRaw.isNotEmpty) {
+        assignment = assignmentsRaw.first as Map<String, dynamic>;
+      } else if (assignmentsRaw is Map<String, dynamic>) {
+        assignment = assignmentsRaw;
+      }
+      
+      if (assignment != null) {
         assignmentId = assignment['id'] as String?;
         if (assignment['staff'] != null) {
           occupant = StaffModel.fromJson(assignment['staff'] as Map<String, dynamic>);
