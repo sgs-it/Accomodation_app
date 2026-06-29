@@ -69,7 +69,10 @@ class AuthService {
     final tempClient = SupabaseClient(
       'https://bhmzebuvksntosaogzet.supabase.co',
       _client.rest.headers['apikey'] ?? '',
-      authOptions: const AuthClientOptions(autoRefreshToken: false),
+      authOptions: const AuthClientOptions(
+        autoRefreshToken: false,
+        flowType: AuthFlowType.implicit,
+      ),
     );
 
     final result = await tempClient.auth.signUp(
