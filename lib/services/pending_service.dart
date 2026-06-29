@@ -109,6 +109,18 @@ class PendingService {
 
       if (change.changeType == 'leave_request' && change.targetTable == 'staff') {
         updatePayload = {'status': 'On Leave'};
+        // Also update bed status to VACATION
+        final assignResp = await _client
+            .from('bed_assignments')
+            .select('bed_id')
+            .eq('staff_id', change.targetId!)
+            .maybeSingle();
+        if (assignResp != null) {
+          await _client
+              .from('beds')
+              .update({'status': 'VACATION'})
+              .eq('id', assignResp['bed_id'] as String);
+        }
       } else if (change.changeType == 'shift_request' && change.targetTable == 'staff') {
         // A room shift might require manual assignment by admin; no direct staff table update needed
         // other than marking the request as approved.
