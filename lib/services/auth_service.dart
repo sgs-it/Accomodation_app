@@ -57,13 +57,14 @@ class AuthService {
         .maybeSingle();
   }
 
-  /// Admin creates a new staff account
-  Future<void> createStaffAccount({
-    required String staffId,
+  /// Admin creates a new account (staff or admin)
+  Future<void> createAccount({
+    required String identifier,
     required String displayName,
     required String password,
+    required String role,
   }) async {
-    final email = resolveEmail(staffId);
+    final email = role == 'admin' ? identifier : resolveEmail(identifier);
 
     final tempClient = SupabaseClient(
       'https://bhmzebuvksntosaogzet.supabase.co',
@@ -81,7 +82,7 @@ class AuthService {
     if (newUserId == null) throw Exception('Failed to create account');
 
     await _client.from('user_roles').upsert(
-      {'user_id': newUserId, 'role': 'staff'},
+      {'user_id': newUserId, 'role': role},
       onConflict: 'user_id',
     );
 

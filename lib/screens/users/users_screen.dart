@@ -18,6 +18,7 @@ class _UsersScreenState extends State<UsersScreen> {
   final _staffIdCtrl = TextEditingController();
   final _passCtrl    = TextEditingController();
   final _nameCtrl    = TextEditingController();
+  String _selectedRole = 'staff';
   bool _loading = false;
   String? _message;
 
@@ -29,21 +30,28 @@ class _UsersScreenState extends State<UsersScreen> {
     super.dispose();
   }
 
-  Future<void> _createStaff() async {
+  Future<void> _createAccount() async {
     final id   = _staffIdCtrl.text.trim();
     final pass = _passCtrl.text;
     final name = _nameCtrl.text.trim();
     if (id.isEmpty || pass.isEmpty || name.isEmpty) return;
+    
+    if (_selectedRole == 'admin' && !id.contains('@')) {
+      setState(() => _message = '✗ Admin accounts must use a valid email address.');
+      return;
+    }
+
     setState(() { _loading = true; _message = null; });
     try {
       final provider = context.read<AppProvider>();
-      await provider.authService.createStaffAccount(
-        staffId:     id,
+      await provider.authService.createAccount(
+        identifier:  id,
         displayName: name,
         password:    pass,
+        role:        _selectedRole,
       );
       setState(() {
-        _message = '✓ Staff account created for $name (ID: $id)';
+        _message = '✓ $_selectedRole account created for $name ($id)';
         _staffIdCtrl.clear();
         _passCtrl.clear();
         _nameCtrl.clear();
@@ -64,7 +72,7 @@ class _UsersScreenState extends State<UsersScreen> {
           onPressed: () => context.go('/dashboard'),
           color: AppTheme.textSecondary,
         ),
-        title: Text('Create Staff Account',
+        title: Text('Create Account',
             style: GoogleFonts.inter(
                 color: AppTheme.textPrimary, fontWeight: FontWeight.w700)),
       ),
@@ -88,7 +96,7 @@ class _UsersScreenState extends State<UsersScreen> {
                   Expanded(
                     child: Text(
                       'Staff accounts are usually created automatically via bulk import. '
-                      'Use this form to manually create individual accounts.',
+                      'Use this form to manually create accounts for staff or other admins.',
                       style: GoogleFonts.inter(
                           color: AppTheme.textSecondary, fontSize: 12),
                     ),
@@ -98,7 +106,7 @@ class _UsersScreenState extends State<UsersScreen> {
             ),
             const SizedBox(height: 28),
 
-            Text('New Staff Account',
+            Text('New Account',
                 style: GoogleFonts.inter(
                     color: AppTheme.textPrimary,
                     fontSize: 16,
@@ -114,13 +122,39 @@ class _UsersScreenState extends State<UsersScreen> {
               ),
             ),
             const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              value: _selectedRole,
+              dropdownColor: AppTheme.bgCard,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Account Role',
+                prefixIcon: Icon(Icons.admin_panel_settings_outlined, color: AppTheme.textMuted),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'staff', child: Text('Staff Member')),
+                DropdownMenuItem(value: 'admin', child: Text('Administrator')),
+              ],
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() {
+                    _selectedRole = v;
+                    _staffIdCtrl.clear();
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 14),
             TextField(
               controller: _staffIdCtrl,
               style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: const InputDecoration(
-                labelText: 'Occupant ID (login username)',
-                hintText: 'e.g. 1325 or LS6080',
-                prefixIcon: Icon(Icons.badge_outlined, color: AppTheme.textMuted),
+              decoration: InputDecoration(
+                labelText: _selectedRole == 'admin' 
+                    ? 'Email Address (login username)' 
+                    : 'Occupant ID (login username)',
+                hintText: _selectedRole == 'admin' 
+                    ? 'e.g. admin@sgs.com' 
+                    : 'e.g. 1325 or LS6080',
+                prefixIcon: const Icon(Icons.badge_outlined, color: AppTheme.textMuted),
               ),
             ),
             const SizedBox(height: 14),
@@ -128,10 +162,14 @@ class _UsersScreenState extends State<UsersScreen> {
               controller: _passCtrl,
               obscureText: true,
               style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: const InputDecoration(
-                labelText: 'Default Password (use their Bed ID)',
-                hintText: 'e.g. R2026-053',
-                prefixIcon: Icon(Icons.lock_outline, color: AppTheme.textMuted),
+              decoration: InputDecoration(
+                labelText: _selectedRole == 'admin'
+                    ? 'Password'
+                    : 'Default Password (use their Bed ID)',
+                hintText: _selectedRole == 'admin'
+                    ? 'Minimum 6 characters'
+                    : 'e.g. R2026-053',
+                prefixIcon: const Icon(Icons.lock_outline, color: AppTheme.textMuted),
               ),
             ),
             const SizedBox(height: 24),
@@ -161,7 +199,7 @@ class _UsersScreenState extends State<UsersScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _loading ? null : _createStaff,
+                onPressed: _loading ? null : _createAccount,
                 icon: _loading
                     ? const SizedBox(
                         width: 16, height: 16,
@@ -169,7 +207,7 @@ class _UsersScreenState extends State<UsersScreen> {
                             strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.person_add_rounded),
-                label: const Text('Create Staff Account'),
+                label: const Text('Create Account'),
               ),
             ),
           ],
