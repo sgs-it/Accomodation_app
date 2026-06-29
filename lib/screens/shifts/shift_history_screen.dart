@@ -196,6 +196,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<StaffModel>(
+                  isExpanded: true,
                   dropdownColor: AppTheme.bgCard,
                   style: const TextStyle(color: AppTheme.textPrimary),
                   decoration: const InputDecoration(labelText: 'Staff Member'),
@@ -203,6 +204,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
                       .map((s) => DropdownMenuItem(
                             value: s,
                             child: Text('${s.name} (${s.staffId})',
+                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inter(
                                     color: AppTheme.textPrimary, fontSize: 12)),
                           ))
@@ -211,6 +213,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<BedModel>(
+                  isExpanded: true,
                   dropdownColor: AppTheme.bgCard,
                   style: const TextStyle(color: AppTheme.textPrimary),
                   decoration: const InputDecoration(labelText: 'From Bed (optional)'),
@@ -227,6 +230,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<BedModel>(
+                  isExpanded: true,
                   dropdownColor: AppTheme.bgCard,
                   style: const TextStyle(color: AppTheme.textPrimary),
                   decoration: const InputDecoration(labelText: 'To Bed (optional)'),

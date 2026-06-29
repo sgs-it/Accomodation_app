@@ -302,6 +302,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<StaffModel>(
+                isExpanded: true,
                 dropdownColor: AppTheme.bgCard,
                 style: const TextStyle(color: AppTheme.textPrimary),
                 decoration: const InputDecoration(labelText: 'Select Staff'),
@@ -309,6 +310,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                     .map((s) => DropdownMenuItem(
                           value: s,
                           child: Text('${s.name} (${s.staffId})',
+                              overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.inter(
                                   color: AppTheme.textPrimary, fontSize: 13)),
                         ))
