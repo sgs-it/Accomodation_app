@@ -25,7 +25,8 @@ class BedService {
         .insert(bed.toJson())
         .select()
         .single();
-    return BedModel.fromJson(response as Map<String, dynamic>);
+    return BedModel.fromJson(response);
+
   }
 
   Future<void> updateStatus(String bedId, String status) async {

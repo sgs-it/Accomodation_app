@@ -17,6 +17,7 @@ import 'screens/staff/staff_detail_screen.dart';
 import 'screens/leave/leave_screen.dart';
 import 'screens/shifts/shift_history_screen.dart';
 import 'screens/users/users_screen.dart';
+import 'screens/requests/pending_requests_screen.dart';
 import 'screens/shell/main_shell.dart';
 
 final _router = GoRouter(
@@ -25,22 +26,12 @@ final _router = GoRouter(
     final session = Supabase.instance.client.auth.currentSession;
     final path = state.uri.path;
     final loggedIn = session != null;
-
-    // If not logged in and not going to login/splash, redirect to login
-    if (!loggedIn && path != '/' && path != '/login') {
-      return '/login';
-    }
+    if (!loggedIn && path != '/' && path != '/login') return '/login';
     return null;
   },
   routes: [
-    GoRoute(
-      path: '/',
-      builder: (ctx, state) => const SplashScreen(),
-    ),
-    GoRoute(
-      path: '/login',
-      builder: (ctx, state) => const LoginScreen(),
-    ),
+    GoRoute(path: '/', builder: (ctx, state) => const SplashScreen()),
+    GoRoute(path: '/login', builder: (ctx, state) => const LoginScreen()),
     ShellRoute(
       builder: (ctx, state, child) => MainShell(child: child),
       routes: [
@@ -75,18 +66,16 @@ final _router = GoRouter(
             ),
           ],
         ),
+        GoRoute(path: '/leave', builder: (ctx, state) => const LeaveScreen()),
         GoRoute(
-          path: '/leave',
-          builder: (ctx, state) => const LeaveScreen(),
-        ),
+            path: '/shifts',
+            builder: (ctx, state) => const ShiftHistoryScreen()),
         GoRoute(
-          path: '/shifts',
-          builder: (ctx, state) => const ShiftHistoryScreen(),
-        ),
+            path: '/users',
+            builder: (ctx, state) => const UsersScreen()),
         GoRoute(
-          path: '/users',
-          builder: (ctx, state) => const UsersScreen(),
-        ),
+            path: '/requests',
+            builder: (ctx, state) => const PendingRequestsScreen()),
       ],
     ),
   ],

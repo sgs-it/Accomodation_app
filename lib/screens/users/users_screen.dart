@@ -15,33 +15,36 @@ class UsersScreen extends StatefulWidget {
 }
 
 class _UsersScreenState extends State<UsersScreen> {
-  final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  final _nameCtrl = TextEditingController();
+  final _staffIdCtrl = TextEditingController();
+  final _passCtrl    = TextEditingController();
+  final _nameCtrl    = TextEditingController();
   bool _loading = false;
   String? _message;
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _staffIdCtrl.dispose();
     _passCtrl.dispose();
     _nameCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _createViewer() async {
-    if (_emailCtrl.text.isEmpty || _passCtrl.text.isEmpty || _nameCtrl.text.isEmpty) return;
+  Future<void> _createStaff() async {
+    final id   = _staffIdCtrl.text.trim();
+    final pass = _passCtrl.text;
+    final name = _nameCtrl.text.trim();
+    if (id.isEmpty || pass.isEmpty || name.isEmpty) return;
     setState(() { _loading = true; _message = null; });
     try {
       final provider = context.read<AppProvider>();
-      await provider.authService.createViewer(
-        email: _emailCtrl.text.trim(),
-        password: _passCtrl.text,
-        displayName: _nameCtrl.text.trim(),
+      await provider.authService.createStaffAccount(
+        staffId:     id,
+        displayName: name,
+        password:    pass,
       );
       setState(() {
-        _message = '✓ Viewer account created for ${_emailCtrl.text.trim()}';
-        _emailCtrl.clear();
+        _message = '✓ Staff account created for $name (ID: $id)';
+        _staffIdCtrl.clear();
         _passCtrl.clear();
         _nameCtrl.clear();
       });
@@ -61,7 +64,7 @@ class _UsersScreenState extends State<UsersScreen> {
           onPressed: () => context.go('/dashboard'),
           color: AppTheme.textSecondary,
         ),
-        title: Text('Manage Users',
+        title: Text('Create Staff Account',
             style: GoogleFonts.inter(
                 color: AppTheme.textPrimary, fontWeight: FontWeight.w700)),
       ),
@@ -74,9 +77,9 @@ class _UsersScreenState extends State<UsersScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.08),
+                color: AppTheme.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
+                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
@@ -84,7 +87,8 @@ class _UsersScreenState extends State<UsersScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Viewers can add locations, rooms, beds, and staff for the first time. Only Admins can edit or delete data.',
+                      'Staff accounts are usually created automatically via bulk import. '
+                      'Use this form to manually create individual accounts.',
                       style: GoogleFonts.inter(
                           color: AppTheme.textSecondary, fontSize: 12),
                     ),
@@ -94,7 +98,7 @@ class _UsersScreenState extends State<UsersScreen> {
             ),
             const SizedBox(height: 28),
 
-            Text('Create Viewer Account',
+            Text('New Staff Account',
                 style: GoogleFonts.inter(
                     color: AppTheme.textPrimary,
                     fontSize: 16,
@@ -105,18 +109,18 @@ class _UsersScreenState extends State<UsersScreen> {
               controller: _nameCtrl,
               style: const TextStyle(color: AppTheme.textPrimary),
               decoration: const InputDecoration(
-                labelText: 'Display Name',
+                labelText: 'Full Name',
                 prefixIcon: Icon(Icons.person_outline, color: AppTheme.textMuted),
               ),
             ),
             const SizedBox(height: 14),
             TextField(
-              controller: _emailCtrl,
-              keyboardType: TextInputType.emailAddress,
+              controller: _staffIdCtrl,
               style: const TextStyle(color: AppTheme.textPrimary),
               decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined, color: AppTheme.textMuted),
+                labelText: 'Occupant ID (login username)',
+                hintText: 'e.g. 1325 or LS6080',
+                prefixIcon: Icon(Icons.badge_outlined, color: AppTheme.textMuted),
               ),
             ),
             const SizedBox(height: 14),
@@ -125,7 +129,8 @@ class _UsersScreenState extends State<UsersScreen> {
               obscureText: true,
               style: const TextStyle(color: AppTheme.textPrimary),
               decoration: const InputDecoration(
-                labelText: 'Password',
+                labelText: 'Default Password (use their Bed ID)',
+                hintText: 'e.g. R2026-053',
                 prefixIcon: Icon(Icons.lock_outline, color: AppTheme.textMuted),
               ),
             ),
@@ -137,13 +142,13 @@ class _UsersScreenState extends State<UsersScreen> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: _message!.startsWith('✓')
-                      ? AppTheme.success.withOpacity(0.1)
-                      : AppTheme.danger.withOpacity(0.1),
+                      ? AppTheme.success.withValues(alpha: 0.1)
+                      : AppTheme.danger.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                       color: _message!.startsWith('✓')
-                          ? AppTheme.success.withOpacity(0.3)
-                          : AppTheme.danger.withOpacity(0.3)),
+                          ? AppTheme.success.withValues(alpha: 0.3)
+                          : AppTheme.danger.withValues(alpha: 0.3)),
                 ),
                 child: Text(_message!,
                     style: GoogleFonts.inter(
@@ -153,16 +158,19 @@ class _UsersScreenState extends State<UsersScreen> {
                         fontSize: 13)),
               ),
 
-            ElevatedButton.icon(
-              onPressed: _loading ? null : _createViewer,
-              icon: _loading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.person_add_rounded),
-              label: const Text('Create Viewer Account'),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _loading ? null : _createStaff,
+                icon: _loading
+                    ? const SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.person_add_rounded),
+                label: const Text('Create Staff Account'),
+              ),
             ),
           ],
         ),

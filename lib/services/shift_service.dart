@@ -44,7 +44,8 @@ class ShiftService {
         .select('*, staff(name, staff_id), from_bed:from_bed_id(bed_code), to_bed:to_bed_id(bed_code)')
         .single();
 
-    return ShiftHistoryModel.fromJson(response as Map<String, dynamic>);
+    return ShiftHistoryModel.fromJson(response);
+
   }
 
   Future<void> delete(String id) async {

@@ -6,7 +6,7 @@ import '../models/staff.dart';
 class StaffService {
   final _client = Supabase.instance.client;
 
-  Future<List<StaffModel>> getAll({String? search, String? status}) async {
+  Future<List<StaffModel>> getAll({String? search, String? status, String? locationId}) async {
     var query = _client.from('staff').select();
 
     if (status != null && status.isNotEmpty) {
@@ -50,7 +50,8 @@ class StaffService {
         .maybeSingle();
 
     if (response == null) return null;
-    return StaffModel.fromJson(response as Map<String, dynamic>);
+    return StaffModel.fromJson(response);
+
   }
 
   Future<List<StaffModel>> getUnassigned() async {
@@ -73,7 +74,8 @@ class StaffService {
         .insert(staff.toJson())
         .select()
         .single();
-    return StaffModel.fromJson(response as Map<String, dynamic>);
+    return StaffModel.fromJson(response);
+
   }
 
   Future<void> update(String id, Map<String, dynamic> updates) async {

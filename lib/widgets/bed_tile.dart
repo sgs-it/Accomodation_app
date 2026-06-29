@@ -22,9 +22,10 @@ class BedTile extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: statusColor.withOpacity(0.08),
+          color: statusColor.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: statusColor.withOpacity(0.5), width: 1.5),
+          border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 1.5),
+
         ),
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -45,7 +46,8 @@ class BedTile extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.15),
+                    color: statusColor.withValues(alpha: 0.15),
+
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(

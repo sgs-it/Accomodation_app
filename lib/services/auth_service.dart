@@ -2,7 +2,8 @@
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-enum UserRole { admin, viewer, unknown }
+
+enum UserRole { admin, staff, unknown }
 
 class AuthService {
   final _client = Supabase.instance.client;
@@ -10,7 +11,17 @@ class AuthService {
   User? get currentUser => _client.auth.currentUser;
   bool get isLoggedIn => currentUser != null;
 
-  Future<void> signIn({required String email, required String password}) async {
+  /// Resolves the login identifier to a full email.
+  /// If the input already contains '@' it's used as-is (admin).
+  /// Otherwise, spaces and special chars are stripped and @staff.sgs.com is appended.
+  static String resolveEmail(String input) {
+    if (input.contains('@')) return input.trim();
+    final clean = input.trim().replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
+    return '$clean@staff.sgs.com';
+  }
+
+  Future<void> signIn({required String identifier, required String password}) async {
+    final email = resolveEmail(identifier);
     await _client.auth.signInWithPassword(email: email, password: password);
   }
 
@@ -31,26 +42,33 @@ class AuthService {
     if (resp == null) return UserRole.unknown;
     final role = resp['role'] as String?;
     if (role == 'admin') return UserRole.admin;
-    if (role == 'viewer') return UserRole.viewer;
+    if (role == 'staff') return UserRole.staff;
     return UserRole.unknown;
   }
 
-  /// Admin creates a new viewer account
-  Future<void> createViewer({
-    required String email,
-    required String password,
+  /// Get the linked staff record for the currently logged-in staff user
+  Future<Map<String, dynamic>?> getMyStaffRecord() async {
+    final user = currentUser;
+    if (user == null) return null;
+    return await _client
+        .from('staff')
+        .select('*')
+        .eq('auth_user_id', user.id)
+        .maybeSingle();
+  }
+
+  /// Admin creates a new staff account
+  Future<void> createStaffAccount({
+    required String staffId,
     required String displayName,
+    required String password,
   }) async {
-    // We cannot use admin.createUser from the client with just the anon key.
-    // Instead, we use a temporary client to sign up the user without logging out the admin.
+    final email = resolveEmail(staffId);
+
     final tempClient = SupabaseClient(
-      _client.auth.currentSession != null 
-          ? _client.rest.url.replaceAll('/rest/v1', '') 
-          : 'https://bhmzebuvksntosaogzet.supabase.co',
+      'https://bhmzebuvksntosaogzet.supabase.co',
       _client.rest.headers['apikey'] ?? '',
-      authOptions: const AuthClientOptions(
-        autoRefreshToken: false,
-      ),
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
     );
 
     final result = await tempClient.auth.signUp(
@@ -60,16 +78,15 @@ class AuthService {
     );
 
     final newUserId = result.user?.id;
-    if (newUserId == null) throw Exception('Failed to create user');
+    if (newUserId == null) throw Exception('Failed to create account');
 
-    await _client.from('user_roles').insert({
-      'user_id': newUserId,
-      'role': 'viewer',
-    });
-    
+    await _client.from('user_roles').upsert(
+      {'user_id': newUserId, 'role': 'staff'},
+      onConflict: 'user_id',
+    );
+
     tempClient.dispose();
   }
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
 }
-

@@ -174,7 +174,8 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.12),
+                          color: statusColor.withValues(alpha: 0.12),
+
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(staff.status,
@@ -299,7 +300,8 @@ class _ShiftHistoryTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.1),
+              color: AppTheme.primary.withValues(alpha: 0.1),
+
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(Icons.swap_horiz_rounded, color: AppTheme.primary, size: 16),

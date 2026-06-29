@@ -1,0 +1,144 @@
+// lib/services/pending_service.dart
+
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class PendingChange {
+  final String id;
+  final String submittedBy;
+  final String staffName;
+  final String changeType;
+  final String? targetTable;
+  final String? targetId;
+  final Map<String, dynamic> payload;
+  final String status; // pending | approved | rejected
+  final String? adminNote;
+  final DateTime createdAt;
+
+  PendingChange({
+    required this.id,
+    required this.submittedBy,
+    required this.staffName,
+    required this.changeType,
+    this.targetTable,
+    this.targetId,
+    required this.payload,
+    required this.status,
+    this.adminNote,
+    required this.createdAt,
+  });
+
+  factory PendingChange.fromJson(Map<String, dynamic> j) => PendingChange(
+        id: j['id'] as String,
+        submittedBy: j['submitted_by'] as String,
+        staffName: j['staff_name'] as String? ?? 'Unknown',
+        changeType: j['change_type'] as String,
+        targetTable: j['target_table'] as String?,
+        targetId: j['target_id'] as String?,
+        payload: Map<String, dynamic>.from(j['payload'] as Map? ?? {}),
+        status: j['status'] as String,
+        adminNote: j['admin_note'] as String?,
+        createdAt: DateTime.parse(j['created_at'] as String),
+      );
+}
+
+class PendingService {
+  final _client = Supabase.instance.client;
+
+  /// Staff submits any change for admin approval
+  Future<void> submitChange({
+    required String staffName,
+    required String changeType,
+    String? targetTable,
+    String? targetId,
+    required Map<String, dynamic> payload,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    await _client.from('pending_changes').insert({
+      'submitted_by': user.id,
+      'staff_name': staffName,
+      'change_type': changeType,
+      'target_table': targetTable,
+      'target_id': targetId,
+      'payload': payload,
+      'status': 'pending',
+    });
+  }
+
+  /// Get all pending changes (admin sees all, staff sees their own)
+  Future<List<PendingChange>> getAll({String? status}) async {
+    var query = _client
+        .from('pending_changes')
+        .select()
+        .order('created_at', ascending: false);
+
+    final data = await query;
+    var list = data.map((j) => PendingChange.fromJson(j)).toList();
+    if (status != null) {
+      list = list.where((c) => c.status == status).toList();
+    }
+    return list;
+  }
+
+  /// Get pending changes submitted by the current user
+  Future<List<PendingChange>> getMyChanges() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return [];
+    final data = await _client
+        .from('pending_changes')
+        .select()
+        .eq('submitted_by', user.id)
+        .order('created_at', ascending: false);
+    return data.map((j) => PendingChange.fromJson(j)).toList();
+  }
+
+  Future<int> getPendingCount() async {
+    final data = await _client
+        .from('pending_changes')
+        .select()
+        .eq('status', 'pending');
+    return data.length;
+  }
+
+  /// Admin approves a change — applies it to the target table
+  Future<void> approve(PendingChange change, {String? note}) async {
+    // Apply the change to the real table if applicable
+    if (change.targetTable != null && change.targetId != null && change.payload.isNotEmpty) {
+      Map<String, dynamic> updatePayload = {};
+
+      if (change.changeType == 'leave_request' && change.targetTable == 'staff') {
+        updatePayload = {'status': 'On Leave'};
+      } else if (change.changeType == 'shift_request' && change.targetTable == 'staff') {
+        // A room shift might require manual assignment by admin; no direct staff table update needed
+        // other than marking the request as approved.
+      } else {
+        // Clean out metadata keys if any
+        updatePayload = Map.from(change.payload)
+          ..removeWhere((k, v) => k == 'staff_name' || k == 'staff_id' || k == 'reason');
+      }
+
+      if (updatePayload.isNotEmpty) {
+        await _client
+            .from(change.targetTable!)
+            .update(updatePayload)
+            .eq('id', change.targetId!);
+      }
+    }
+
+    await _client.from('pending_changes').update({
+      'status': 'approved',
+      'admin_note': note,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', change.id);
+  }
+
+  /// Admin rejects a change
+  Future<void> reject(PendingChange change, {required String reason}) async {
+    await _client.from('pending_changes').update({
+      'status': 'rejected',
+      'admin_note': reason,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', change.id);
+  }
+}

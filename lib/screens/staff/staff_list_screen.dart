@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../models/staff.dart';
 import '../../providers/app_provider.dart';
 import '../../services/staff_service.dart';
+import '../../services/pending_service.dart';
 import '../../widgets/loading_skeleton.dart';
 
 class StaffListScreen extends StatefulWidget {
@@ -22,24 +23,24 @@ class _StaffListScreenState extends State<StaffListScreen>
   final _searchCtrl = TextEditingController();
   bool _loading = false;
   List<StaffModel> _staff = [];
+  List<PendingChange> _myPending = [];
+  // staffId -> list of pending changes
+  Map<String, List<PendingChange>> _pendingByStaff = {};
   String _statusFilter = '';
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    final provider = context.read<AppProvider>();
+    final isStaff = provider.isStaff;
+    _tabController = TabController(length: isStaff ? 2 : 3, vsync: this);
     _tabController.addListener(() {
+      if (isStaff) return;
       switch (_tabController.index) {
-        case 0:
-          _statusFilter = '';
-          break;
-        case 1:
-          _statusFilter = 'Active';
-          break;
-        case 2:
-          _statusFilter = 'On Leave';
-          break;
+        case 0: _statusFilter = ''; break;
+        case 1: _statusFilter = 'Active'; break;
+        case 2: _statusFilter = 'On Leave'; break;
       }
       _load();
     });
@@ -55,21 +56,35 @@ class _StaffListScreenState extends State<StaffListScreen>
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    final provider = context.read<AppProvider>();
     _staff = await StaffService().getAll(
       search: _searchCtrl.text.trim(),
       status: _statusFilter.isEmpty ? null : _statusFilter,
     );
+    if (provider.isAdmin) {
+      // Load ALL pending changes and group by staff
+      final all = await provider.pendingService.getAll(status: 'pending');
+      _pendingByStaff = {};
+      for (final c in all) {
+        final sid = c.payload['staff_id']?.toString() ?? '';
+        _pendingByStaff.putIfAbsent(sid, () => []).add(c);
+      }
+    } else if (provider.isStaff) {
+      _myPending = await provider.pendingService.getMyChanges();
+    }
     setState(() => _loading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
+    final isAdmin = provider.isAdmin;
+    final isStaff = provider.isStaff;
 
     return Scaffold(
       backgroundColor: AppTheme.bgDark,
       appBar: AppBar(
-        title: Text('Staff Directory',
+        title: Text(isStaff ? 'My Profile' : 'Staff Directory',
             style: GoogleFonts.inter(
                 color: AppTheme.textPrimary, fontWeight: FontWeight.w700)),
         bottom: TabBar(
@@ -78,72 +93,198 @@ class _StaffListScreenState extends State<StaffListScreen>
           labelColor: AppTheme.primary,
           unselectedLabelColor: AppTheme.textMuted,
           labelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
-          tabs: const [
-            Tab(text: 'All'),
-            Tab(text: 'Active'),
-            Tab(text: 'On Leave'),
-          ],
+          tabs: isStaff
+              ? const [Tab(text: 'My Info'), Tab(text: 'My Requests')]
+              : const [
+                  Tab(text: 'All'),
+                  Tab(text: 'Active'),
+                  Tab(text: 'On Leave'),
+                ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add_rounded, color: AppTheme.primary),
-            onPressed: () => _showAddStaffDialog(context, provider),
-          ),
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.person_add_rounded, color: AppTheme.primary),
+              onPressed: () => _showAddStaffDialog(context, provider),
+            ),
         ],
       ),
-      body: Column(
+      body: isStaff
+          ? TabBarView(
+              controller: _tabController,
+              children: [
+                _buildStaffMyInfo(provider),
+                _buildMyRequestsTab(),
+              ],
+            )
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    style: const TextStyle(color: AppTheme.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Search by name or staff ID...',
+                      prefixIcon: const Icon(Icons.search, color: AppTheme.textMuted),
+                      suffixIcon: _searchCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: AppTheme.textMuted),
+                              onPressed: () { _searchCtrl.clear(); _load(); },
+                            )
+                          : null,
+                    ),
+                    onChanged: (_) => _load(),
+                  ),
+                ),
+                Expanded(
+                  child: _loading
+                      ? const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Column(children: [
+                            SkeletonCard(), SkeletonCard(), SkeletonCard()
+                          ]),
+                        )
+                      : _staff.isEmpty
+                          ? _EmptyStaff(onAdd: () => _showAddStaffDialog(context, provider))
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: _staff.length,
+                              itemBuilder: (ctx, i) {
+                                final sid = _staff[i].staffId;
+                                final pending = _pendingByStaff[sid] ?? [];
+                                return _StaffCard(
+                                  staff: _staff[i],
+                                  isAdmin: isAdmin,
+                                  pendingCount: pending.length,
+                                  onTap: () => context.go('/staff/${_staff[i].id}'),
+                                  onDelete: isAdmin
+                                      ? () async {
+                                          await StaffService().delete(_staff[i].id);
+                                          _load();
+                                        }
+                                      : null,
+                                );
+                              },
+                            ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildStaffMyInfo(AppProvider provider) {
+    final rec = provider.myStaffRecord;
+    if (rec == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _searchCtrl,
-              style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Search by name or staff ID...',
-                prefixIcon: const Icon(Icons.search, color: AppTheme.textMuted),
-                suffixIcon: _searchCtrl.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: AppTheme.textMuted),
-                        onPressed: () {
-                          _searchCtrl.clear();
-                          _load();
-                        },
-                      )
-                    : null,
+          Center(
+            child: Container(
+              width: 80, height: 80,
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
               ),
-              onChanged: (_) => _load(),
+              child: Center(
+                child: Text(
+                  (rec['name'] as String? ?? 'S').split(' ').take(2)
+                      .map((w) => w[0]).join().toUpperCase(),
+                  style: GoogleFonts.inter(
+                      color: AppTheme.primary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
             ),
           ),
+          const SizedBox(height: 16),
+          Center(
+            child: Text(rec['name'] as String? ?? '',
+                style: GoogleFonts.inter(
+                    color: AppTheme.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: Text('ID: ${rec['staff_id'] ?? ''}',
+                style: GoogleFonts.inter(
+                    color: AppTheme.textMuted, fontSize: 13)),
+          ),
+          const SizedBox(height: 24),
+          _infoTile(Icons.badge_outlined, 'Occupant ID', rec['staff_id'] ?? '-'),
+          _infoTile(Icons.circle, 'Status', rec['status'] ?? '-'),
+          if (rec['phone'] != null)
+            _infoTile(Icons.phone_outlined, 'Phone', rec['phone']),
+          if (rec['nationality'] != null)
+            _infoTile(Icons.flag_outlined, 'Nationality', rec['nationality']),
+        ],
+      ),
+    );
+  }
 
-          // List
-          Expanded(
-            child: _loading
-                ? const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                        children: [SkeletonCard(), SkeletonCard(), SkeletonCard()]),
-                  )
-                : _staff.isEmpty
-                    ? _EmptyStaff(onAdd: () => _showAddStaffDialog(context, provider))
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _staff.length,
-                        itemBuilder: (ctx, i) => _StaffCard(
-                          staff: _staff[i],
-                          isAdmin: provider.isAdmin,
-                          onTap: () => context.go('/staff/${_staff[i].id}'),
-                          onDelete: provider.isAdmin
-                              ? () async {
-                                  await StaffService().delete(_staff[i].id);
-                                  _load();
-                                }
-                              : null,
-                        ),
-                      ),
+  Widget _infoTile(IconData icon, String label, String value) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.bgCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppTheme.textMuted, size: 18),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: GoogleFonts.inter(
+                      color: AppTheme.textMuted, fontSize: 11)),
+              Text(value,
+                  style: GoogleFonts.inter(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14)),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMyRequestsTab() {
+    final pending = _myPending;
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (pending.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.pending_actions_outlined,
+                size: 56, color: AppTheme.textMuted.withValues(alpha: 0.4)),
+            const SizedBox(height: 12),
+            Text('No requests yet',
+                style: GoogleFonts.inter(
+                    color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text('Use the Leave page to submit a request',
+                style: GoogleFonts.inter(
+                    color: AppTheme.textSecondary, fontSize: 13)),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: pending.length,
+      itemBuilder: (ctx, i) => _PendingMiniCard(change: pending[i]),
     );
   }
 
@@ -225,14 +366,73 @@ class _StaffListScreenState extends State<StaffListScreen>
   }
 }
 
+class _PendingMiniCard extends StatelessWidget {
+  final PendingChange change;
+  const _PendingMiniCard({required this.change});
+
+  Color get _color {
+    switch (change.status) {
+      case 'approved': return AppTheme.success;
+      case 'rejected': return AppTheme.danger;
+      default: return AppTheme.warning;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final label = change.changeType == 'leave_request'
+        ? 'Leave Request'
+        : change.changeType == 'shift_request'
+            ? 'Room Shift'
+            : change.changeType;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.bgCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8, height: 8,
+            decoration: BoxDecoration(color: _color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(label,
+                style: GoogleFonts.inter(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13)),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: _color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(change.status.toUpperCase(),
+                style: GoogleFonts.inter(
+                    color: _color, fontSize: 10, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _StaffCard extends StatelessWidget {
   final StaffModel staff;
   final bool isAdmin;
+  final int pendingCount;
   final VoidCallback onTap;
   final VoidCallback? onDelete;
   const _StaffCard({
     required this.staff,
     required this.isAdmin,
+    required this.pendingCount,
     required this.onTap,
     this.onDelete,
   });
@@ -259,7 +459,7 @@ class _StaffCard extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.15),
+                color: AppTheme.primary.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -299,7 +499,7 @@ class _StaffCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
+                    color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(staff.status,
@@ -308,6 +508,23 @@ class _StaffCard extends StatelessWidget {
                           fontSize: 10,
                           fontWeight: FontWeight.w700)),
                 ),
+                if (pendingCount > 0) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warning.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '$pendingCount pending',
+                      style: GoogleFonts.inter(
+                          color: AppTheme.warning,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
                 if (isAdmin && onDelete != null) ...[
                   const SizedBox(height: 4),
                   GestureDetector(

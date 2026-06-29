@@ -53,7 +53,8 @@ class RoomService {
         .insert(room.toJson())
         .select()
         .single();
-    return RoomModel.fromJson(response as Map<String, dynamic>);
+    return RoomModel.fromJson(response);
+
   }
 
   Future<void> update(String id, Map<String, dynamic> updates) async {

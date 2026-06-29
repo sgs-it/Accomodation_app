@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../models/room.dart';
+import '../../models/location.dart';
 import '../../providers/app_provider.dart';
 import '../../services/room_service.dart';
 import '../../widgets/loading_skeleton.dart';
@@ -59,7 +60,19 @@ class _RoomsListScreenState extends State<RoomsListScreen> {
             Text(_locationName ?? widget.locationId,
                 style: GoogleFonts.inter(
                     color: AppTheme.textPrimary, fontWeight: FontWeight.w700)),
-            Text('Rooms', style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 11)),
+            Builder(builder: (ctx) {
+              final loc = provider.locations.firstWhere(
+                  (l) => l.id == widget.locationId,
+                  orElse: () => LocationModel(id: '', name: ''));
+              final manager = loc.managerName;
+              return Text(
+                manager != null && manager.isNotEmpty
+                    ? 'Managed by: $manager • Rooms list'
+                    : 'Rooms list',
+                style: GoogleFonts.inter(
+                    color: AppTheme.textSecondary, fontSize: 12),
+              );
+            }),
           ],
         ),
         actions: [
