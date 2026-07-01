@@ -24,6 +24,17 @@ class AppTheme {
   static const Color textSecondary = Color(0xFF94A3B8);
   static const Color textMuted = Color(0xFF64748B);
 
+  // Custom Gradients for Redesign
+  static const LinearGradient dashboardHeaderGradient = LinearGradient(
+    colors: [Color(0xFF130B2A), Color(0xFF1A1040)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static const Color iconBgLight = Color(0xFFF1F5F9);
+  static const Color statUpGreen = Color(0xFF10B981);
+  static const Color statDownRed = Color(0xFFE53935);
+
   static ThemeData get dark {
     return ThemeData(
       useMaterial3: true,

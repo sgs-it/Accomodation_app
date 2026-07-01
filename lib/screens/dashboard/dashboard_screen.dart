@@ -31,65 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bgDark,
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Dashboard',
-                style: GoogleFonts.inter(
-                    color: AppTheme.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700)),
-            Text('Staff Accommodation Overview',
-                style: GoogleFonts.inter(
-                    color: AppTheme.textSecondary, fontSize: 11)),
-          ],
-        ),
-        actions: [
-          Consumer<AppProvider>(
-            builder: (_, p, __) => p.isAdmin
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.download_rounded, color: AppTheme.textSecondary),
-                        tooltip: 'Export Excel',
-                        onPressed: () async {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Generating Excel export...')),
-                          );
-                          try {
-                            await ExportService().exportData();
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Export failed: $e')),
-                              );
-                            }
-                          }
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.person_add_outlined,
-                            color: AppTheme.textSecondary),
-                        tooltip: 'Manage Users',
-                        onPressed: () => context.go('/users'),
-                      ),
-                    ],
-                  )
-                : const SizedBox.shrink(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: AppTheme.textSecondary),
-            tooltip: 'Sign Out',
-            onPressed: () async {
-              await context.read<AppProvider>().authService.signOut();
-              if (mounted) context.go('/login');
-            },
-          ),
-        ],
-      ),
+      backgroundColor: const Color(0xFFF8FAFC), // Light grey/white background
       body: Consumer<AppProvider>(
         builder: (ctx, provider, _) {
           if (provider.loading) {
@@ -97,87 +39,185 @@ class _DashboardScreenState extends State<DashboardScreen> {
           }
           return RefreshIndicator(
             color: AppTheme.primary,
-            backgroundColor: AppTheme.bgCard,
+            backgroundColor: Colors.white,
             onRefresh: provider.loadLocations,
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Role badge
-                _RoleBadge(isAdmin: provider.isAdmin),
-                const SizedBox(height: 20),
-
-                // Summary stats grid
-                Text('Overview',
-                    style: GoogleFonts.inter(
-                        color: AppTheme.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: 12),
-                GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    StatCard(
-                      label: 'Total Beds',
-                      value: provider.totalBeds,
-                      color: AppTheme.primary,
-                      icon: Icons.bed_rounded,
-                      onTap: () => context.go('/beds-overview/all'),
-                    ),
-                    StatCard(
-                      label: 'Occupied',
-                      value: provider.totalOccupied,
-                      color: AppTheme.danger,
-                      icon: Icons.person_rounded,
-                      onTap: () => context.go('/beds-overview/occupied'),
-                    ),
-                    StatCard(
-                      label: 'Vacant',
-                      value: provider.totalVacant,
-                      color: AppTheme.success,
-                      icon: Icons.check_circle_outline,
-                      onTap: () => context.go('/beds-overview/vacant'),
-                    ),
-                    StatCard(
-                      label: 'On Leave',
-                      value: provider.totalOnLeave,
-                      color: AppTheme.vacation,
-                      icon: Icons.flight_takeoff_rounded,
-                      onTap: () => context.go('/beds-overview/leave'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Locations list
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Locations',
-                        style: GoogleFonts.inter(
-                            color: AppTheme.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600)),
-                    if (provider.isAdmin)
-                      TextButton.icon(
-                        onPressed: () => _showAddLocationDialog(context, provider),
-                        icon: const Icon(Icons.add, size: 16),
-                        label: const Text('Add'),
-                        style: TextButton.styleFrom(
-                            foregroundColor: AppTheme.primary),
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Stack(
+                    children: [
+                      // Wavy Purple Background Header
+                      ClipPath(
+                        clipper: _HeaderClipper(),
+                        child: Container(
+                          height: 280,
+                          width: double.infinity,
+                          decoration: const BoxDecoration(
+                            gradient: AppTheme.dashboardHeaderGradient,
+                            image: DecorationImage(
+                              image: AssetImage('assets/images/city_bg.png'), // fallback to empty if missing
+                              fit: BoxFit.cover,
+                              opacity: 0.1,
+                            ),
+                          ),
+                        ),
                       ),
-                  ],
+                      // Header Content
+                      SafeArea(
+                        bottom: false,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Welcome, Admin 👋',
+                                            style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold)),
+                                        Text('Staff Accommodation Overview',
+                                            style: GoogleFonts.inter(
+                                                color: Colors.white70, fontSize: 13)),
+                                      ],
+                                    ),
+                                  ),
+                                  // Action Buttons
+                                  if (provider.isAdmin) ...[
+                                    _ActionBtn(
+                                      icon: Icons.download_rounded,
+                                      onTap: () async {
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Generating Excel...')));
+                                        try { await ExportService().exportData(); } catch (_) {}
+                                      }
+                                    ),
+                                    const SizedBox(width: 10),
+                                    _ActionBtn(icon: Icons.person_add_outlined, onTap: () => context.go('/users'), color: AppTheme.accent),
+                                    const SizedBox(width: 10),
+                                  ],
+                                  _ActionBtn(
+                                    icon: Icons.logout,
+                                    onTap: () async {
+                                      await context.read<AppProvider>().authService.signOut();
+                                      if (context.mounted) context.go('/login');
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              // Role badge
+                              _RoleBadge(isAdmin: provider.isAdmin),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Main Content Area overlapping header
+                      Container(
+                        margin: const EdgeInsets.only(top: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Summary stats grid
+                            Row(
+                              children: [
+                                const Icon(Icons.insert_chart_outlined, color: AppTheme.vacation),
+                                const SizedBox(width: 8),
+                                Text('OVERVIEW',
+                                    style: GoogleFonts.inter(
+                                        color: const Color(0xFF1E293B),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            GridView.count(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 1.25, // Make cards shorter to remove blank space
+                              padding: EdgeInsets.zero, // Remove any default/inherited padding
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              children: [
+                                StatCard(
+                                  label: 'Total Beds',
+                                  value: provider.totalBeds,
+                                  color: AppTheme.primary,
+                                  icon: Icons.bed_rounded,
+                                  sparklineData: const [10, 20, 15, 30, 25, 40, 50, 45, 60],
+                                  onTap: () => context.go('/beds-overview/all'),
+                                ),
+                                StatCard(
+                                  label: 'Occupied',
+                                  value: provider.totalOccupied,
+                                  color: AppTheme.danger,
+                                  icon: Icons.person_rounded,
+                                  sparklineData: const [30, 25, 40, 35, 50, 45, 60, 55, 70],
+                                  onTap: () => context.go('/beds-overview/occupied'),
+                                ),
+                                StatCard(
+                                  label: 'Vacant',
+                                  value: provider.totalVacant,
+                                  color: AppTheme.success,
+                                  icon: Icons.check_circle_outline,
+                                  sparklineData: const [50, 45, 60, 55, 70, 65, 80, 75, 90],
+                                  onTap: () => context.go('/beds-overview/vacant'),
+                                ),
+                                StatCard(
+                                  label: 'On Leave',
+                                  value: provider.totalOnLeave,
+                                  color: AppTheme.vacation,
+                                  icon: Icons.flight_takeoff_rounded,
+                                  sparklineData: const [20, 25, 15, 30, 20, 35, 25, 40, 30],
+                                  onTap: () => context.go('/beds-overview/leave'),
+                                ),
+                              ],
+                            ),
+                            // Locations list
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.location_on_outlined, color: AppTheme.vacation),
+                                    const SizedBox(width: 8),
+                                    Text('LOCATIONS',
+                                        style: GoogleFonts.inter(
+                                            color: const Color(0xFF1E293B),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                                if (provider.isAdmin)
+                                  TextButton.icon(
+                                    onPressed: () => _showAddLocationDialog(context, provider),
+                                    icon: const Icon(Icons.add, size: 16),
+                                    label: const Text('Add Location'),
+                                    style: TextButton.styleFrom(
+                                        foregroundColor: AppTheme.vacation),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            if (provider.locations.isEmpty)
+                              _EmptyLocations(isAdmin: provider.isAdmin)
+                            else
+                              ...provider.locations
+                                  .map((loc) => _LocationCard(location: loc)),
+                            const SizedBox(height: 100), // padding for bottom nav
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
-                if (provider.locations.isEmpty)
-                  _EmptyLocations(isAdmin: provider.isAdmin)
-                else
-                  ...provider.locations
-                      .map((loc) => _LocationCard(location: loc)),
               ],
             ),
           );
@@ -393,9 +433,12 @@ class _LocationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
     final isAdmin = provider.isAdmin;
-    final occupancyPct = location.totalBeds > 0
-        ? location.occupiedBeds / location.totalBeds
-        : 0.0;
+    
+    // Calculate percentages for progress bar
+    final total = location.totalBeds > 0 ? location.totalBeds : 1; // avoid div by 0
+    final occPct = location.occupiedBeds / total;
+    final vacPct = location.vacantBeds / total;
+    final leavePct = location.onLeaveBeds / total;
 
     return GestureDetector(
       onTap: () => context.go('/rooms/${location.id}'),
@@ -403,23 +446,27 @@ class _LocationCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.bgCard,
+          color: const Color(0xFF1E243A), // Dark purple-ish background for cards
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.divider),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
+                // Avatar (Building)
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
+                    color: const Color(0xFF2C3552),
+                    shape: BoxShape.circle,
+                    image: const DecorationImage(
+                      image: AssetImage('assets/images/building.png'), // Will fallback if not present
+                      fit: BoxFit.cover,
+                      colorFilter: ColorFilter.mode(Colors.black38, BlendMode.darken),
+                    ),
                   ),
-                  child: const Icon(Icons.location_city_rounded,
-                      color: AppTheme.primary, size: 18),
+                  child: const Icon(Icons.business, color: Colors.white54),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -428,94 +475,87 @@ class _LocationCard extends StatelessWidget {
                     children: [
                       Text(location.name,
                           style: GoogleFonts.inter(
-                              color: AppTheme.textPrimary,
+                              color: Colors.white,
                               fontSize: 15,
                               fontWeight: FontWeight.w600)),
-                      if (location.managerName != null)
-                        Text(location.managerName!,
-                            style: GoogleFonts.inter(
-                                color: AppTheme.textSecondary, fontSize: 11)),
+                      Text(location.managerName ?? 'Manager',
+                          style: GoogleFonts.inter(
+                              color: const Color(0xFF94A3B8), fontSize: 12)),
                     ],
                   ),
                 ),
+                // Location ID Chip
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppTheme.bgCardLight,
-                    borderRadius: BorderRadius.circular(8),
+                    color: AppTheme.primary.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(location.id,
                       style: GoogleFonts.inter(
                           color: AppTheme.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700)),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600)),
                 ),
-                if (isAdmin) ...[
-                  const SizedBox(width: 8),
+                if (isAdmin)
                   PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary, size: 20),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 100),
+                    icon: const Icon(Icons.more_vert, color: Colors.white54, size: 18),
                     color: AppTheme.bgCard,
-                    surfaceTintColor: Colors.transparent,
-                    onSelected: (value) {
-                      if (value == 'edit') {
+                    onSelected: (val) {
+                      if (val == 'edit') {
                         _showEditLocationDialog(context, provider);
-                      } else if (value == 'delete') {
+                      } else if (val == 'delete') {
                         _showDeleteLocationDialog(context, provider);
                       }
                     },
-                    itemBuilder: (context) => [
+                    itemBuilder: (ctx) => [
                       PopupMenuItem(
                         value: 'edit',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.edit_rounded, color: AppTheme.textPrimary, size: 16),
-                            const SizedBox(width: 8),
-                            Text('Edit', style: GoogleFonts.inter(color: AppTheme.textPrimary, fontSize: 13)),
-                          ],
-                        ),
+                        child: Text('Edit', style: GoogleFonts.inter(color: AppTheme.textPrimary)),
                       ),
                       PopupMenuItem(
                         value: 'delete',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.delete_rounded, color: AppTheme.danger, size: 16),
-                            const SizedBox(width: 8),
-                            Text('Delete', style: GoogleFonts.inter(color: AppTheme.danger, fontSize: 13)),
-                          ],
-                        ),
+                        child: Text('Delete', style: GoogleFonts.inter(color: AppTheme.danger)),
                       ),
                     ],
                   ),
-                ],
               ],
             ),
             const SizedBox(height: 16),
-            // Occupancy bar
+            // Multi-colored segmented progress bar
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: occupancyPct,
-                minHeight: 6,
-                backgroundColor: AppTheme.divider,
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(_progressColor(occupancyPct)),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: (occPct * 100).toInt(),
+                    child: Container(height: 6, color: AppTheme.danger),
+                  ),
+                  Expanded(
+                    flex: (vacPct * 100).toInt(),
+                    child: Container(height: 6, color: AppTheme.success),
+                  ),
+                  Expanded(
+                    flex: (leavePct * 100).toInt(),
+                    child: Container(height: 6, color: AppTheme.vacation),
+                  ),
+                  if (total == 1 && location.totalBeds == 0)
+                    Expanded(
+                      flex: 1,
+                      child: Container(height: 6, color: AppTheme.divider),
+                    ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
+            // Bottom stats row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _MiniStat(
-                    label: 'Total', value: location.totalBeds, color: AppTheme.textSecondary),
-                _MiniStat(
-                    label: 'Occupied', value: location.occupiedBeds, color: AppTheme.danger),
-                _MiniStat(
-                    label: 'Vacant', value: location.vacantBeds, color: AppTheme.success),
-                _MiniStat(
-                    label: 'On Leave', value: location.onLeaveBeds, color: AppTheme.vacation),
+                _MiniStat(label: 'Total', value: location.totalBeds, color: const Color(0xFF8B5CF6)),
+                _MiniStat(label: 'Occupied', value: location.occupiedBeds, color: AppTheme.danger),
+                _MiniStat(label: 'Vacant', value: location.vacantBeds, color: AppTheme.success),
+                _MiniStat(label: 'On Leave', value: location.onLeaveBeds, color: AppTheme.vacation),
               ],
             ),
           ],
@@ -523,30 +563,24 @@ class _LocationCard extends StatelessWidget {
       ),
     );
   }
-
-  Color _progressColor(double pct) {
-    if (pct < 0.6) return AppTheme.success;
-    if (pct < 0.85) return AppTheme.warning;
-    return AppTheme.danger;
-  }
 }
 
 class _MiniStat extends StatelessWidget {
   final String label;
   final int value;
   final Color color;
-  const _MiniStat(
-      {required this.label, required this.value, required this.color});
+  const _MiniStat({required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(value.toString(),
             style: GoogleFonts.inter(
-                color: color, fontSize: 16, fontWeight: FontWeight.bold)),
+                color: color, fontSize: 14, fontWeight: FontWeight.bold)),
         Text(label,
-            style: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 10)),
+            style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 10)),
       ],
     );
   }
@@ -656,4 +690,77 @@ class _DashboardSkeleton extends StatelessWidget {
     );
   }
 }
+
+class _HeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    var path = Path();
+    path.lineTo(0, size.height - 40);
+    path.quadraticBezierTo(
+        size.width / 4, size.height, size.width / 2, size.height - 20);
+    path.quadraticBezierTo(
+        size.width * 3 / 4, size.height - 40, size.width, size.height - 10);
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color color;
+  final bool hasBadge;
+
+  const _ActionBtn({
+    required this.icon,
+    required this.onTap,
+    this.color = AppTheme.vacation,
+    this.hasBadge = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          if (hasBadge)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: AppTheme.danger,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '3',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 
