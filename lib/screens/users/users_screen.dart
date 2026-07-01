@@ -6,6 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../providers/app_provider.dart';
+import '../../models/location.dart';
+import '../../models/room.dart';
+import '../../models/bed.dart';
+import '../../services/room_service.dart';
+import '../../services/bed_service.dart';
 
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
@@ -22,12 +27,70 @@ class _UsersScreenState extends State<UsersScreen> {
   bool _loading = false;
   String? _message;
 
+  LocationModel? _selectedLocation;
+  RoomModel? _selectedRoom;
+  BedModel? _selectedBed;
+
+  List<RoomModel> _rooms = [];
+  List<BedModel> _beds = [];
+  bool _loadingDropdowns = false;
+
   @override
   void dispose() {
     _staffIdCtrl.dispose();
     _passCtrl.dispose();
     _nameCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _onLocationChanged(LocationModel? loc) async {
+    if (loc == null) return;
+    setState(() {
+      _selectedLocation = loc;
+      _selectedRoom = null;
+      _selectedBed = null;
+      _rooms = [];
+      _beds = [];
+      _loadingDropdowns = true;
+    });
+    try {
+      final rooms = await RoomService().getByLocation(loc.id);
+      setState(() {
+        _rooms = rooms;
+      });
+    } catch (e) {
+      setState(() => _message = '✗ Error loading rooms: $e');
+    } finally {
+      setState(() => _loadingDropdowns = false);
+    }
+  }
+
+  Future<void> _onRoomChanged(RoomModel? room) async {
+    if (room == null) return;
+    setState(() {
+      _selectedRoom = room;
+      _selectedBed = null;
+      _beds = [];
+      _loadingDropdowns = true;
+    });
+    try {
+      final beds = await BedService().getByRoom(room.id);
+      setState(() {
+        _beds = beds.where((b) => b.status == 'VACANT').toList();
+      });
+    } catch (e) {
+      setState(() => _message = '✗ Error loading beds: $e');
+    } finally {
+      setState(() => _loadingDropdowns = false);
+    }
+  }
+
+  void _onBedChanged(BedModel? bed) {
+    if (bed == null) return;
+    setState(() {
+      _selectedBed = bed;
+      _passCtrl.text = bed.bedCode;
+    });
   }
 
   Future<void> _createAccount() async {
@@ -49,6 +112,11 @@ class _UsersScreenState extends State<UsersScreen> {
       return;
     }
 
+    if (_selectedRole == 'staff' && _selectedBed == null) {
+      setState(() => _message = '✗ Please select a Location, Room, and Bed.');
+      return;
+    }
+
     setState(() { _loading = true; _message = null; });
     try {
       final provider = context.read<AppProvider>();
@@ -57,12 +125,22 @@ class _UsersScreenState extends State<UsersScreen> {
         displayName: name,
         password:    pass,
         role:        _selectedRole,
+        selectedBedId: _selectedRole == 'staff' ? _selectedBed?.id : null,
       );
+      
+      // Reload provider data to update stats and list
+      await provider.init();
+
       setState(() {
-        _message = '✓ $_selectedRole account created for $name ($id)';
+        _message = '✓ $_selectedRole account created and bed assigned for $name ($id)';
         _staffIdCtrl.clear();
         _passCtrl.clear();
         _nameCtrl.clear();
+        _selectedLocation = null;
+        _selectedRoom = null;
+        _selectedBed = null;
+        _rooms = [];
+        _beds = [];
       });
     } catch (e) {
       setState(() => _message = '✗ Error: $e');
@@ -73,6 +151,8 @@ class _UsersScreenState extends State<UsersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<AppProvider>();
+
     return Scaffold(
       backgroundColor: AppTheme.bgDark,
       appBar: AppBar(
@@ -122,10 +202,82 @@ class _UsersScreenState extends State<UsersScreen> {
                   setState(() {
                     _selectedRole = v;
                     _staffIdCtrl.clear();
+                    _passCtrl.clear();
+                    _selectedLocation = null;
+                    _selectedRoom = null;
+                    _selectedBed = null;
+                    _rooms = [];
+                    _beds = [];
                   });
                 }
               },
             ),
+            if (_selectedRole == 'staff') ...[
+              const SizedBox(height: 14),
+              DropdownButtonFormField<LocationModel>(
+                value: _selectedLocation,
+                dropdownColor: AppTheme.bgCard,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Select Location',
+                  prefixIcon: Icon(Icons.location_on_outlined, color: AppTheme.textMuted),
+                ),
+                items: provider.locations.map((loc) {
+                  return DropdownMenuItem<LocationModel>(
+                    value: loc,
+                    child: Text('${loc.name} (${loc.id})'),
+                  );
+                }).toList(),
+                onChanged: _loadingDropdowns ? null : _onLocationChanged,
+              ),
+              if (_selectedLocation != null) ...[
+                const SizedBox(height: 14),
+                DropdownButtonFormField<RoomModel>(
+                  value: _selectedRoom,
+                  dropdownColor: AppTheme.bgCard,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(
+                    labelText: 'Select Room',
+                    prefixIcon: Icon(Icons.meeting_room_outlined, color: AppTheme.textMuted),
+                  ),
+                  items: _rooms.map((room) {
+                    return DropdownMenuItem<RoomModel>(
+                      value: room,
+                      child: Text('${room.roomNumber} (${room.roomCode})'),
+                    );
+                  }).toList(),
+                  onChanged: _loadingDropdowns ? null : _onRoomChanged,
+                ),
+              ],
+              if (_selectedRoom != null) ...[
+                const SizedBox(height: 14),
+                DropdownButtonFormField<BedModel>(
+                  value: _selectedBed,
+                  dropdownColor: AppTheme.bgCard,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(
+                    labelText: 'Select Bed (Vacant)',
+                    prefixIcon: Icon(Icons.bed_outlined, color: AppTheme.textMuted),
+                  ),
+                  items: _beds.map((bed) {
+                    return DropdownMenuItem<BedModel>(
+                      value: bed,
+                      child: Text('${bed.bedCode} (${bed.position})'),
+                    );
+                  }).toList(),
+                  onChanged: _loadingDropdowns ? null : _onBedChanged,
+                ),
+              ],
+              if (_loadingDropdowns) ...[
+                const SizedBox(height: 10),
+                const Center(
+                  child: SizedBox(
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                  ),
+                ),
+              ],
+            ],
             const SizedBox(height: 14),
             TextField(
               controller: _staffIdCtrl,
@@ -148,10 +300,10 @@ class _UsersScreenState extends State<UsersScreen> {
               decoration: InputDecoration(
                 labelText: _selectedRole == 'admin'
                     ? 'Password'
-                    : 'Default Password (use their Bed ID)',
+                    : 'Default Password (auto-filled on bed select)',
                 hintText: _selectedRole == 'admin'
                     ? 'Minimum 6 characters'
-                    : 'e.g. R2026-053',
+                    : 'Select a bed to auto-fill password',
                 prefixIcon: const Icon(Icons.lock_outline, color: AppTheme.textMuted),
               ),
             ),

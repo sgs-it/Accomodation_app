@@ -173,11 +173,110 @@ class _StaffListScreenState extends State<StaffListScreen>
     );
   }
 
+  void _showEditProfileDialog(BuildContext ctx, AppProvider provider, Map<String, dynamic> rec) {
+    final nameCtrl = TextEditingController(text: rec['name'] as String?);
+    final phoneCtrl = TextEditingController(text: rec['phone'] as String? ?? '');
+    final natCtrl = TextEditingController(text: rec['nationality'] as String? ?? '');
+
+    showDialog(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppTheme.bgCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Edit Profile',
+            style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Full Name',
+                prefixIcon: Icon(Icons.person_outline, color: AppTheme.textMuted),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: natCtrl,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Nationality',
+                prefixIcon: Icon(Icons.flag_outlined, color: AppTheme.textMuted),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Phone (optional)',
+                prefixIcon: Icon(Icons.phone_outlined, color: AppTheme.textMuted),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text('Cancel',
+                style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newName = nameCtrl.text.trim();
+              if (newName.isEmpty) return;
+              Navigator.pop(dialogCtx);
+              try {
+                await StaffService().update(rec['id'] as String, {
+                  'name': newName,
+                  'nationality': natCtrl.text.trim().isEmpty ? 'Unknown' : natCtrl.text.trim(),
+                  'phone': phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                });
+                await provider.init();
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Error updating profile: $e')),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(minimumSize: Size.zero),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStaffMyInfo(AppProvider provider) {
     final rec = provider.myStaffRecord;
     if (rec == null) {
       return const Center(child: CircularProgressIndicator());
     }
+
+    String? locationText;
+    String? roomText;
+    String? bedText;
+
+    final assignments = rec['bed_assignments'] as List?;
+    if (assignments != null && assignments.isNotEmpty) {
+      final bed = assignments.first['bed'] as Map<String, dynamic>?;
+      if (bed != null) {
+        bedText = "${bed['bed_code']} (${bed['position']})";
+        final room = bed['room'] as Map<String, dynamic>?;
+        if (room != null) {
+          roomText = "${room['room_number']} (${room['room_code']})";
+          final location = room['location'] as Map<String, dynamic>?;
+          if (location != null) {
+            locationText = "${location['name']} (${location['id']})";
+          }
+        }
+      }
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -218,10 +317,31 @@ class _StaffListScreenState extends State<StaffListScreen>
           const SizedBox(height: 24),
           _infoTile(Icons.badge_outlined, 'Occupant ID', rec['staff_id'] ?? '-'),
           _infoTile(Icons.circle, 'Status', rec['status'] ?? '-'),
+          if (locationText != null)
+            _infoTile(Icons.location_on_outlined, 'Accommodation Location', locationText),
+          if (roomText != null)
+            _infoTile(Icons.meeting_room_outlined, 'Room', roomText),
+          if (bedText != null)
+            _infoTile(Icons.bed_outlined, 'Bed Assignment', bedText),
           if (rec['phone'] != null)
             _infoTile(Icons.phone_outlined, 'Phone', rec['phone']),
           if (rec['nationality'] != null)
             _infoTile(Icons.flag_outlined, 'Nationality', rec['nationality']),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _showEditProfileDialog(context, provider, rec),
+              icon: const Icon(Icons.edit),
+              label: const Text('Edit Profile'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.bgCard,
+                foregroundColor: AppTheme.primary,
+                side: const BorderSide(color: AppTheme.primary, width: 1),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
         ],
       ),
     );

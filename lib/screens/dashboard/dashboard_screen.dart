@@ -190,6 +190,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final idCtrl = TextEditingController();
     final nameCtrl = TextEditingController();
     final managerCtrl = TextEditingController();
+    final roomsCtrl = TextEditingController(text: '0');
+    final bedsCtrl = TextEditingController(text: '4');
+
     showDialog(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
@@ -197,27 +200,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Add Location',
             style: GoogleFonts.inter(color: AppTheme.textPrimary)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: idCtrl,
-              style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: const InputDecoration(labelText: 'Location Code (e.g. AQZ)'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: nameCtrl,
-              style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: const InputDecoration(labelText: 'Location Name'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: managerCtrl,
-              style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: const InputDecoration(labelText: 'Manager Name (optional)'),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: idCtrl,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(labelText: 'Location Code (e.g. AQZ)'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nameCtrl,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(labelText: 'Location Name'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: managerCtrl,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(labelText: 'Manager Name (optional)'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: roomsCtrl,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(labelText: 'Number of Rooms to Create'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: bedsCtrl,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(labelText: 'Beds per Room'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -228,15 +247,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ElevatedButton(
             onPressed: () async {
               if (idCtrl.text.isEmpty || nameCtrl.text.isEmpty) return;
+              final numRooms = int.tryParse(roomsCtrl.text) ?? 0;
+              final numBeds = int.tryParse(bedsCtrl.text) ?? 0;
               Navigator.pop(dialogCtx);
               try {
-                await LocationService().create(LocationModel(
-                  id: idCtrl.text.trim().toUpperCase(),
-                  name: nameCtrl.text.trim(),
-                  managerName: managerCtrl.text.trim().isEmpty
-                      ? null
-                      : managerCtrl.text.trim(),
-                ));
+                await LocationService().createWithRoomsAndBeds(
+                  location: LocationModel(
+                    id: idCtrl.text.trim().toUpperCase(),
+                    name: nameCtrl.text.trim(),
+                    managerName: managerCtrl.text.trim().isEmpty
+                        ? null
+                        : managerCtrl.text.trim(),
+                  ),
+                  numRooms: numRooms,
+                  numBeds: numBeds,
+                );
                 await provider.loadLocations();
               } catch (e) {
                 if (ctx.mounted) {
@@ -259,8 +284,115 @@ class _LocationCard extends StatelessWidget {
   final LocationModel location;
   const _LocationCard({required this.location});
 
+  void _showEditLocationDialog(BuildContext ctx, AppProvider provider) {
+    final nameCtrl = TextEditingController(text: location.name);
+    final managerCtrl = TextEditingController(text: location.managerName ?? '');
+
+    showDialog(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppTheme.bgCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Edit Location',
+            style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: const InputDecoration(labelText: 'Location Name'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: managerCtrl,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: const InputDecoration(labelText: 'Manager Name (optional)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text('Cancel',
+                style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameCtrl.text.isEmpty) return;
+              Navigator.pop(dialogCtx);
+              try {
+                await LocationService().update(location.id, {
+                  'name': nameCtrl.text.trim(),
+                  'manager_name': managerCtrl.text.trim().isEmpty
+                      ? null
+                      : managerCtrl.text.trim(),
+                });
+                await provider.loadLocations();
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(minimumSize: Size.zero),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteLocationDialog(BuildContext ctx, AppProvider provider) {
+    showDialog(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppTheme.bgCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete Location?',
+            style: GoogleFonts.inter(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Are you sure you want to delete "${location.name}"? This will permanently delete all rooms, beds, and occupant assignments in this location. This action cannot be undone.',
+          style: GoogleFonts.inter(color: AppTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text('Cancel',
+                style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              try {
+                await LocationService().delete(location.id);
+                await provider.loadLocations();
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.danger,
+              foregroundColor: Colors.white,
+              minimumSize: Size.zero,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<AppProvider>();
+    final isAdmin = provider.isAdmin;
     final occupancyPct = location.totalBeds > 0
         ? location.occupiedBeds / location.totalBeds
         : 0.0;
@@ -283,7 +415,7 @@ class _LocationCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.15),
+                    color: AppTheme.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.location_city_rounded,
@@ -319,6 +451,45 @@ class _LocationCard extends StatelessWidget {
                           fontSize: 12,
                           fontWeight: FontWeight.w700)),
                 ),
+                if (isAdmin) ...[
+                  const SizedBox(width: 8),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 100),
+                    color: AppTheme.bgCard,
+                    surfaceTintColor: Colors.transparent,
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        _showEditLocationDialog(context, provider);
+                      } else if (value == 'delete') {
+                        _showDeleteLocationDialog(context, provider);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.edit_rounded, color: AppTheme.textPrimary, size: 16),
+                            const SizedBox(width: 8),
+                            Text('Edit', style: GoogleFonts.inter(color: AppTheme.textPrimary, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.delete_rounded, color: AppTheme.danger, size: 16),
+                            const SizedBox(width: 8),
+                            Text('Delete', style: GoogleFonts.inter(color: AppTheme.danger, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 16),

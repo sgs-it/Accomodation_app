@@ -51,7 +51,7 @@ class AuthService {
     if (user == null) return null;
     return await _client
         .from('staff')
-        .select('*')
+        .select('*, bed_assignments(bed:beds(id, bed_code, position, room:rooms(id, room_number, room_code, location:locations(id, name))))')
         .eq('auth_user_id', user.id)
         .maybeSingle();
   }
@@ -62,6 +62,7 @@ class AuthService {
     required String displayName,
     required String password,
     required String role,
+    String? selectedBedId,
   }) async {
     final email = role == 'admin' ? identifier : resolveEmail(identifier);
 
@@ -87,6 +88,35 @@ class AuthService {
       {'user_id': newUserId, 'role': role},
       onConflict: 'user_id',
     );
+
+    if (role == 'staff') {
+      // 1. Create staff profile record directly
+      final staffResponse = await _client
+          .from('staff')
+          .insert({
+            'staff_id': identifier,
+            'name': displayName,
+            'status': 'Active',
+            'auth_user_id': newUserId,
+            'nationality': 'Unknown',
+          })
+          .select('id')
+          .single();
+
+      final staffUuid = staffResponse['id'] as String;
+
+      // 2. If a bed is selected, assign it
+      if (selectedBedId != null) {
+        await _client.from('bed_assignments').delete().eq('bed_id', selectedBedId);
+        await _client.from('bed_assignments').insert({
+          'bed_id': selectedBedId,
+          'staff_id': staffUuid,
+        });
+
+        // 3. Set bed status to FULL
+        await _client.from('beds').update({'status': 'FULL'}).eq('id', selectedBedId);
+      }
+    }
 
     tempClient.dispose();
   }
