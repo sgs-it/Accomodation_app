@@ -80,7 +80,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         Text('Welcome, Admin 👋',
                                             style: GoogleFonts.inter(
                                                 color: Colors.white,
-                                                fontSize: 20,
+                                                fontSize: 18,
                                                 fontWeight: FontWeight.bold)),
                                         Text('Staff Accommodation Overview',
                                             style: GoogleFonts.inter(
@@ -107,6 +107,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       await context.read<AppProvider>().authService.signOut();
                                       if (context.mounted) context.go('/login');
                                     },
+                                    color: Colors.white.withValues(alpha: 0.1),
                                   ),
                                 ],
                               ),
@@ -125,17 +126,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Summary stats grid
-                            Row(
-                              children: [
-                                const Icon(Icons.insert_chart_outlined, color: AppTheme.vacation),
-                                const SizedBox(width: 8),
-                                Text('OVERVIEW',
-                                    style: GoogleFonts.inter(
-                                        color: const Color(0xFF1E293B),
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold)),
-                              ],
-                            ),
+                            Text('Overview',
+                                style: GoogleFonts.inter(
+                                    color: const Color(0xFF1E293B),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold)),
                             const SizedBox(height: 16),
                             GridView.count(
                               crossAxisCount: 2,
@@ -184,17 +179,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.location_on_outlined, color: AppTheme.vacation),
-                                    const SizedBox(width: 8),
-                                    Text('LOCATIONS',
-                                        style: GoogleFonts.inter(
-                                            color: const Color(0xFF1E293B),
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
+                                Text('Locations',
+                                    style: GoogleFonts.inter(
+                                        color: const Color(0xFF1E293B),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold)),
                                 if (provider.isAdmin)
                                   TextButton.icon(
                                     onPressed: () => _showAddLocationDialog(context, provider),
@@ -595,25 +584,19 @@ class _RoleBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isAdmin
-            ? AppTheme.primary.withOpacity(0.1)
-            : AppTheme.accent.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-            color: isAdmin
-                ? AppTheme.primary.withOpacity(0.3)
-                : AppTheme.accent.withOpacity(0.3)),
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(isAdmin ? Icons.admin_panel_settings : Icons.visibility,
-              color: isAdmin ? AppTheme.primary : AppTheme.accent, size: 16),
+              color: Colors.lightBlueAccent, size: 16),
           const SizedBox(width: 8),
           Text(
             isAdmin ? 'Admin — Full Access' : 'Viewer — Can Add Data',
             style: GoogleFonts.inter(
-              color: isAdmin ? AppTheme.primary : AppTheme.accent,
+              color: Colors.lightBlueAccent,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),

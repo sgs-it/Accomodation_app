@@ -7,7 +7,7 @@ class StaffService {
   final _client = Supabase.instance.client;
 
   Future<List<StaffModel>> getAll({String? search, String? status, String? locationId}) async {
-    var query = _client.from('staff').select();
+    var query = _client.from('staff').select('*, bed_assignments(beds(bed_code, rooms(locations(name))))');
 
     if (status != null && status.isNotEmpty) {
       query = query.eq('status', status);
@@ -23,7 +23,9 @@ class StaffService {
       staff = staff
           .where((s) =>
               s.name.toLowerCase().contains(q) ||
-              s.staffId.toLowerCase().contains(q))
+              s.staffId.toLowerCase().contains(q) ||
+              (s.currentBedCode?.toLowerCase().contains(q) ?? false) ||
+              (s.currentLocationName?.toLowerCase().contains(q) ?? false))
           .toList();
     }
 

@@ -154,27 +154,83 @@ class _UsersScreenState extends State<UsersScreen> {
     final provider = context.watch<AppProvider>();
 
     return Scaffold(
-      backgroundColor: AppTheme.bgDark,
-      appBar: AppBar(
-        leading: BackButton(
-          onPressed: () => context.go('/dashboard'),
-          color: AppTheme.textSecondary,
-        ),
-        title: Text('Create Account',
-            style: GoogleFonts.inter(
-                color: AppTheme.textPrimary, fontWeight: FontWeight.w700)),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('New Account',
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Stack(
+              children: [
+                // Purple Header
+                ClipPath(
+                  clipper: _HeaderClipper(),
+                  child: Container(
+                    height: 220,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF8B5CF6), Color(0xFF4C1D95)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                  ),
+                ),
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => context.go('/dashboard'),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Create Account',
+                                style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Form content
+                Container(
+                  margin: const EdgeInsets.only(top: 100, left: 20, right: 20, bottom: 40),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
+                      )
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+            Text('New Account Details',
                 style: GoogleFonts.inter(
-                    color: AppTheme.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 16),
+                    color: Colors.black87,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 24),
 
             TextField(
               controller: _nameCtrl,
@@ -343,11 +399,40 @@ class _UsersScreenState extends State<UsersScreen> {
                       )
                     : const Icon(Icons.person_add_rounded),
                 label: const Text('Create Account'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ),
           ],
         ),
       ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
+}
+
+class _HeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    var path = Path();
+    path.lineTo(0, size.height - 40);
+    path.quadraticBezierTo(
+        size.width / 4, size.height, size.width / 2, size.height - 20);
+    path.quadraticBezierTo(
+        size.width * 3 / 4, size.height - 40, size.width, size.height - 10);
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

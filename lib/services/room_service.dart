@@ -17,11 +17,15 @@ class RoomService {
         .map((e) => RoomModel.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    // Enrich with occupied count
+    final stats = await _getAllBedStats();
+
     final enriched = <RoomModel>[];
     for (final room in rooms) {
-      final count = await _getOccupiedCount(room.id);
-      enriched.add(room.copyWith(occupiedCount: count));
+      final roomStats = stats[room.id] ?? {'total': 0, 'occupied': 0};
+      enriched.add(room.copyWith(
+        occupiedCount: roomStats['occupied'],
+        actualBedsCount: roomStats['total'],
+      ));
     }
     return enriched;
   }
@@ -33,18 +37,41 @@ class RoomService {
         .order('location_id')
         .order('room_number');
 
-    return (response as List)
+    final rooms = (response as List)
         .map((e) => RoomModel.fromJson(e as Map<String, dynamic>))
         .toList();
+
+    final stats = await _getAllBedStats();
+    
+    final enriched = <RoomModel>[];
+    for (final room in rooms) {
+      final roomStats = stats[room.id] ?? {'total': 0, 'occupied': 0};
+      enriched.add(room.copyWith(
+        occupiedCount: roomStats['occupied'],
+        actualBedsCount: roomStats['total'],
+      ));
+    }
+    return enriched;
   }
 
-  Future<int> _getOccupiedCount(String roomId) async {
+  Future<Map<String, Map<String, int>>> _getAllBedStats() async {
     final resp = await _client
         .from('beds')
-        .select('id')
-        .eq('room_id', roomId)
-        .inFilter('status', ['FULL', 'VACATION']);
-    return (resp as List).length;
+        .select('room_id, status');
+        
+    final Map<String, Map<String, int>> stats = {};
+    for (var b in (resp as List)) {
+      final rId = b['room_id'] as String;
+      final status = b['status'] as String;
+      
+      stats.putIfAbsent(rId, () => {'total': 0, 'occupied': 0});
+      stats[rId]!['total'] = stats[rId]!['total']! + 1;
+      
+      if (status == 'FULL' || status == 'VACATION') {
+        stats[rId]!['occupied'] = stats[rId]!['occupied']! + 1;
+      }
+    }
+    return stats;
   }
 
   Future<RoomModel> create(RoomModel room) async {

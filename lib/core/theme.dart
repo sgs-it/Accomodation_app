@@ -26,7 +26,7 @@ class AppTheme {
 
   // Custom Gradients for Redesign
   static const LinearGradient dashboardHeaderGradient = LinearGradient(
-    colors: [Color(0xFF130B2A), Color(0xFF1A1040)],
+    colors: [Color(0xFF163E9F), Color(0xFF091638)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

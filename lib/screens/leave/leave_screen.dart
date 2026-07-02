@@ -54,42 +54,110 @@ class _LeaveScreenState extends State<LeaveScreen>
     final isStaff = provider.isStaff;
 
     return Scaffold(
-      backgroundColor: AppTheme.bgDark,
-      appBar: AppBar(
-        title: Text('Leave Management',
-            style: GoogleFonts.inter(
-                color: AppTheme.textPrimary, fontWeight: FontWeight.w700)),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.vacation.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Column(
+        children: [
+          // Purple Header
+          ClipPath(
+            clipper: _HeaderClipper(),
+            child: Container(
+              padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16, bottom: 40, left: 20, right: 20),
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF8B5CF6), Color(0xFF4C1D95)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Leave Management',
+                          style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${_onLeave.length} on leave',
+                          style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            child: Text(
-              '${_onLeave.length} on leave',
-              style: GoogleFonts.inter(
-                  color: AppTheme.vacation,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700),
+          ),
+          
+          if (isStaff)
+            Transform.translate(
+              offset: const Offset(0, -20),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: TabBar(
+                  controller: _tabs,
+                  indicatorColor: const Color(0xFF8B5CF6),
+                  labelColor: const Color(0xFF8B5CF6),
+                  unselectedLabelColor: Colors.black54,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+                  tabs: const [
+                    Tab(text: 'Staff on Leave'),
+                    Tab(text: 'My Requests'),
+                  ],
+                ),
+              ),
+            ),
+
+          Expanded(
+            child: Transform.translate(
+              offset: Offset(0, isStaff ? -10 : -20),
+              child: _loading
+                  ? const Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Column(children: [SkeletonCard(), SkeletonCard()]),
+                    )
+                  : isStaff
+                      ? TabBarView(
+                          controller: _tabs,
+                          children: [
+                            _buildLeaveList(isAdmin),
+                            _buildMyRequests(provider),
+                          ],
+                        )
+                      : _buildLeaveList(isAdmin),
             ),
           ),
         ],
-        bottom: isStaff
-            ? TabBar(
-                controller: _tabs,
-                indicatorColor: AppTheme.primary,
-                labelColor: AppTheme.primary,
-                unselectedLabelColor: AppTheme.textMuted,
-                tabs: const [
-                  Tab(text: 'Staff on Leave'),
-                  Tab(text: 'My Requests'),
-                ],
-              )
-            : null,
       ),
-      // Staff: show FAB to request leave
       floatingActionButton: isStaff
           ? FloatingActionButton.extended(
               onPressed: () => _showLeaveRequestDialog(context, provider),
@@ -100,32 +168,18 @@ class _LeaveScreenState extends State<LeaveScreen>
                       color: Colors.white, fontWeight: FontWeight.w600)),
             )
           : null,
-      body: _loading
-          ? const Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(children: [SkeletonCard(), SkeletonCard()]),
-            )
-          : isStaff
-              ? TabBarView(
-                  controller: _tabs,
-                  children: [
-                    _buildLeaveList(isAdmin),
-                    _buildMyRequests(provider),
-                  ],
-                )
-              : _buildLeaveList(isAdmin),
     );
   }
 
   Widget _buildLeaveList(bool isAdmin) {
     return RefreshIndicator(
       color: AppTheme.primary,
-      backgroundColor: AppTheme.bgCard,
+      backgroundColor: Colors.white,
       onRefresh: _load,
       child: _onLeave.isEmpty
           ? _EmptyLeave()
           : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 80),
               itemCount: _onLeave.length,
               itemBuilder: (ctx, i) => _LeaveCard(
                 staff: _onLeave[i],
@@ -411,11 +465,18 @@ class _MyRequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 12, left: 20, right: 20),
       decoration: BoxDecoration(
-        color: AppTheme.bgCard,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _statusColor.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: _statusColor.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -550,65 +611,102 @@ class _LeaveCard extends StatelessWidget {
     final initials = getInitials(staff.name);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.bgCard,
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.vacation.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.vacation.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 44, height: 44,
+            width: 48, height: 48,
             decoration: BoxDecoration(
-              color: AppTheme.vacation.withValues(alpha: 0.15),
+              color: AppTheme.vacation.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(initials,
                   style: GoogleFonts.inter(
                       color: AppTheme.vacation,
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold)),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(staff.name,
                     style: GoogleFonts.inter(
-                        color: AppTheme.textPrimary,
-                        fontSize: 14,
+                        color: Colors.black87,
+                        fontSize: 15,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text('ID: ${staff.staffId}',
                     style: GoogleFonts.inter(
-                        color: AppTheme.textMuted, fontSize: 11)),
+                        color: AppTheme.textMuted, fontSize: 13)),
                 if (staff.nationality != null)
                   Text(staff.nationality!,
                       style: GoogleFonts.inter(
-                          color: AppTheme.textMuted, fontSize: 11)),
+                          color: AppTheme.textMuted, fontSize: 13)),
               ],
             ),
           ),
           if (isAdmin && onMarkReturned != null)
-            ElevatedButton.icon(
-              onPressed: onMarkReturned,
-              icon: const Icon(Icons.flight_land_rounded, size: 14),
-              label: const Text('Returned', style: TextStyle(fontSize: 11)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.success,
-                minimumSize: const Size(80, 32),
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+            Container(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.success.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  )
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: onMarkReturned,
+                icon: const Icon(Icons.flight_land_rounded, size: 16, color: Colors.white),
+                label: const Text('Returned', style: TextStyle(fontSize: 12, color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.success,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
               ),
             ),
         ],
       ),
     );
   }
+}
+
+class _HeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    var path = Path();
+    path.lineTo(0, size.height - 30);
+    path.quadraticBezierTo(
+        size.width / 4, size.height, size.width / 2, size.height - 15);
+    path.quadraticBezierTo(
+        size.width * 3 / 4, size.height - 30, size.width, size.height - 5);
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
 class _EmptyLeave extends StatelessWidget {

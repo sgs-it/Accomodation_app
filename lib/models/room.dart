@@ -12,6 +12,7 @@ class RoomModel {
 
   // Filled by service
   final int occupiedCount;
+  final int actualBedsCount;
 
   const RoomModel({
     required this.id,
@@ -23,10 +24,12 @@ class RoomModel {
     this.notes,
     this.createdAt,
     this.occupiedCount = 0,
+    this.actualBedsCount = 0,
   });
 
-  int get vacantCount => capacity - occupiedCount;
-  double get occupancyRate => capacity > 0 ? occupiedCount / capacity : 0;
+  int get effectiveCapacity => capacity > actualBedsCount ? capacity : actualBedsCount;
+  int get vacantCount => effectiveCapacity - occupiedCount;
+  double get occupancyRate => effectiveCapacity > 0 ? occupiedCount / effectiveCapacity : 0;
 
   factory RoomModel.fromJson(Map<String, dynamic> json) {
     return RoomModel(
@@ -54,7 +57,7 @@ class RoomModel {
         'notes': notes,
       };
 
-  RoomModel copyWith({int? occupiedCount}) {
+  RoomModel copyWith({int? occupiedCount, int? actualBedsCount}) {
     return RoomModel(
       id: id,
       roomCode: roomCode,
@@ -65,6 +68,7 @@ class RoomModel {
       notes: notes,
       createdAt: createdAt,
       occupiedCount: occupiedCount ?? this.occupiedCount,
+      actualBedsCount: actualBedsCount ?? this.actualBedsCount,
     );
   }
 }

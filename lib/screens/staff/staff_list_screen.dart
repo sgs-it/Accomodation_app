@@ -10,6 +10,7 @@ import '../../providers/app_provider.dart';
 import '../../services/staff_service.dart';
 import '../../services/pending_service.dart';
 import '../../widgets/loading_skeleton.dart';
+import '../../widgets/stat_card.dart';
 
 class StaffListScreen extends StatefulWidget {
   const StaffListScreen({super.key});
@@ -34,23 +35,18 @@ class _StaffListScreenState extends State<StaffListScreen>
     super.initState();
     final provider = context.read<AppProvider>();
     final isStaff = provider.isStaff;
-    _tabController = TabController(length: isStaff ? 2 : 3, vsync: this);
-    _tabController.addListener(() {
-      if (isStaff) return;
-      switch (_tabController.index) {
-        case 0: _statusFilter = ''; break;
-        case 1: _statusFilter = 'Active'; break;
-        case 2: _statusFilter = 'On Leave'; break;
-      }
-      _load();
-    });
+    if (isStaff) {
+      _tabController = TabController(length: 2, vsync: this);
+    }
     _load();
   }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
-    _tabController.dispose();
+    if (context.read<AppProvider>().isStaff) {
+      _tabController.dispose();
+    }
     super.dispose();
   }
 
@@ -81,95 +77,214 @@ class _StaffListScreenState extends State<StaffListScreen>
     final isAdmin = provider.isAdmin;
     final isStaff = provider.isStaff;
 
-    return Scaffold(
-      backgroundColor: AppTheme.bgDark,
-      appBar: AppBar(
-        title: Text(isStaff ? 'My Profile' : 'Staff Directory',
-            style: GoogleFonts.inter(
-                color: AppTheme.textPrimary, fontWeight: FontWeight.w700)),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppTheme.primary,
-          labelColor: AppTheme.primary,
-          unselectedLabelColor: AppTheme.textMuted,
-          labelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
-          tabs: isStaff
-              ? const [Tab(text: 'My Info'), Tab(text: 'My Requests')]
-              : const [
-                  Tab(text: 'All'),
-                  Tab(text: 'Active'),
-                  Tab(text: 'On Leave'),
-                ],
+    if (isStaff) {
+      return Scaffold(
+        backgroundColor: AppTheme.bgDark,
+        appBar: AppBar(
+          title: Text('My Profile',
+              style: GoogleFonts.inter(
+                  color: AppTheme.textPrimary, fontWeight: FontWeight.w700)),
+          bottom: TabBar(
+            controller: _tabController,
+            indicatorColor: AppTheme.primary,
+            labelColor: AppTheme.primary,
+            unselectedLabelColor: AppTheme.textMuted,
+            labelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+            tabs: const [Tab(text: 'My Info'), Tab(text: 'My Requests')],
+          ),
         ),
-        actions: [
-          if (isAdmin)
-            IconButton(
-              icon: const Icon(Icons.person_add_rounded, color: AppTheme.primary),
-              onPressed: () => _showAddStaffDialog(context, provider),
-            ),
-        ],
-      ),
-      body: isStaff
-          ? TabBarView(
-              controller: _tabController,
-              children: [
-                _buildStaffMyInfo(provider),
-                _buildMyRequestsTab(),
-              ],
-            )
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: TextField(
-                    controller: _searchCtrl,
-                    style: const TextStyle(color: AppTheme.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: 'Search by name or staff ID...',
-                      prefixIcon: const Icon(Icons.search, color: AppTheme.textMuted),
-                      suffixIcon: _searchCtrl.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, color: AppTheme.textMuted),
-                              onPressed: () { _searchCtrl.clear(); _load(); },
-                            )
-                          : null,
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildStaffMyInfo(provider),
+            _buildMyRequestsTab(),
+          ],
+        ),
+      );
+    }
+
+    final totalStaff = _staff.length;
+    final onLeaveStaff = _staff.where((s) => s.status == 'On Leave').length;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: RefreshIndicator(
+        color: AppTheme.primary,
+        backgroundColor: Colors.white,
+        onRefresh: _load,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Stack(
+                children: [
+                  // Purple Header
+                  ClipPath(
+                    clipper: _HeaderClipper(),
+                    child: Container(
+                      height: 280,
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFF4C1D95)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
                     ),
-                    onChanged: (_) => _load(),
                   ),
-                ),
-                Expanded(
-                  child: _loading
-                      ? const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Column(children: [
-                            SkeletonCard(), SkeletonCard(), SkeletonCard()
-                          ]),
-                        )
-                      : _staff.isEmpty
-                          ? _EmptyStaff(onAdd: () => _showAddStaffDialog(context, provider))
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              itemCount: _staff.length,
-                              itemBuilder: (ctx, i) {
-                                final sid = _staff[i].staffId;
-                                final pending = _pendingByStaff[sid] ?? [];
-                                return _StaffCard(
-                                  staff: _staff[i],
-                                  isAdmin: isAdmin,
-                                  pendingCount: pending.length,
-                                  onTap: () => context.go('/staff/${_staff[i].id}'),
-                                  onDelete: isAdmin
-                                      ? () async {
-                                          await StaffService().delete(_staff[i].id);
-                                          _load();
-                                        }
-                                      : null,
-                                );
-                              },
+                  SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Staff Management',
+                                        style: GoogleFonts.inter(
+                                            color: Colors.white,
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 4),
+                                    Text('Manage and view staff details',
+                                        style: GoogleFonts.inter(
+                                            color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Overlapping content
+                  Container(
+                    margin: const EdgeInsets.only(top: 140),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Summary stats grid
+                        GridView.count(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 1.25,
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          children: [
+                            StatCard(
+                              label: 'Total Staff',
+                              value: totalStaff,
+                              icon: Icons.people,
+                              color: AppTheme.primary,
+                              trendText: '',
+                              trendUp: true,
+                              sparklineData: const [3.0, 4.0, 3.0, 5.0, 4.0, 6.0, 5.0],
                             ),
-                ),
-              ],
+                            StatCard(
+                              label: 'On Leave',
+                              value: onLeaveStaff,
+                              icon: Icons.event_busy,
+                              color: AppTheme.warning,
+                              trendText: '',
+                              trendUp: false,
+                              sparklineData: const [2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        // Search Bar
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF4C1D95).withValues(alpha: 0.08),
+                                blurRadius: 15,
+                                offset: const Offset(0, 4),
+                              )
+                            ],
+                          ),
+                          child: TextField(
+                            controller: _searchCtrl,
+                            style: GoogleFonts.inter(color: Colors.black87),
+                            decoration: InputDecoration(
+                              hintText: 'Search by name, ID or location...',
+                              hintStyle: GoogleFonts.inter(
+                                color: Colors.black54, 
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              prefixIcon: const Icon(Icons.search, color: Color(0xFF4C1D95)),
+                              suffixIcon: _searchCtrl.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear, color: Colors.black38),
+                                      onPressed: () {
+                                        _searchCtrl.clear();
+                                        _load();
+                                      },
+                                    )
+                                  : null,
+                              border: InputBorder.none,
+                              filled: true,
+                              fillColor: Colors.transparent,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            onChanged: (_) => _load(),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        // Staff List
+                        _loading
+                            ? const Column(children: [
+                                SkeletonCard(),
+                                SkeletonCard(),
+                                SkeletonCard()
+                              ])
+                            : _staff.isEmpty
+                                ? _EmptyStaff(onAdd: () => _showAddStaffDialog(context, provider))
+                                : ListView.builder(
+                                    padding: EdgeInsets.zero,
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    itemCount: _staff.length,
+                                    itemBuilder: (ctx, i) {
+                                      final sid = _staff[i].staffId;
+                                      final pending = _pendingByStaff[sid] ?? [];
+                                      return _StaffCard(
+                                        staff: _staff[i],
+                                        isAdmin: isAdmin,
+                                        pendingCount: pending.length,
+                                        onTap: () => context.go('/staff/${_staff[i].id}'),
+                                        onDelete: isAdmin
+                                            ? () async {
+                                                await StaffService().delete(_staff[i].id);
+                                                _load();
+                                              }
+                                            : null,
+                                      );
+                                    },
+                                  ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -565,8 +680,6 @@ class _StaffCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = AppTheme.staffStatusColor(staff.status);
-    
     String getInitials(String name) {
       if (name.trim().isEmpty) return '?';
       final parts = name.trim().split(' ').where((w) => w.isNotEmpty).take(2);
@@ -575,75 +688,150 @@ class _StaffCard extends StatelessWidget {
     }
     final initials = getInitials(staff.name);
 
+    // Determine live status
+    bool isActive = staff.currentBedCode != null;
+    bool isOnLeave = staff.status == 'On Leave';
+    
+    Color dotColor = Colors.grey;
+    if (isOnLeave) {
+      dotColor = AppTheme.warning; // Orange
+    } else if (isActive) {
+      dotColor = AppTheme.success; // Green
+    }
+
+    String locationDisplay = "Not Assigned";
+    if (staff.currentLocationName != null && staff.currentBedCode != null) {
+      locationDisplay = "${staff.currentLocationName}  •  Bed ${staff.currentBedCode}";
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.bgCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppTheme.divider),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primary.withValues(alpha: 0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            )
+          ],
         ),
         child: Row(
           children: [
-            // Avatar
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(initials,
-                    style: GoogleFonts.inter(
-                        color: AppTheme.primary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold)),
-              ),
+            // Avatar with live status dot
+            Stack(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(initials,
+                        style: GoogleFonts.inter(
+                            color: AppTheme.primary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(staff.name,
                       style: GoogleFonts.inter(
-                          color: AppTheme.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 2),
-                  Text(staff.staffId,
+                          color: Colors.black87,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                  Text('ID: ${staff.staffId}',
                       style: GoogleFonts.inter(
-                          color: AppTheme.textMuted, fontSize: 11)),
-                  if (staff.nationality != null) ...[
-                    const SizedBox(height: 1),
-                    Text(staff.nationality!,
-                        style: GoogleFonts.inter(
-                            color: AppTheme.textMuted, fontSize: 11)),
-                  ],
+                          color: AppTheme.textMuted,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 8),
+                  if (isActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.business, color: AppTheme.primary, size: 14),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              "${staff.currentLocationName} • Bed ${staff.currentBedCode}",
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                color: AppTheme.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (!isActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.info_outline, color: Colors.black54, size: 14),
+                          const SizedBox(width: 6),
+                          Text(
+                            staff.status,
+                            style: GoogleFonts.inter(
+                              color: Colors.black54,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
+            // More options
             Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(staff.status,
-                      style: GoogleFonts.inter(
-                          color: statusColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700)),
-                ),
-                if (pendingCount > 0) ...[
-                  const SizedBox(height: 4),
+                if (pendingCount > 0)
                   Container(
+                    margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: AppTheme.warning.withValues(alpha: 0.15),
@@ -657,15 +845,7 @@ class _StaffCard extends StatelessWidget {
                           fontWeight: FontWeight.bold),
                     ),
                   ),
-                ],
-                if (isAdmin && onDelete != null) ...[
-                  const SizedBox(height: 4),
-                  GestureDetector(
-                    onTap: onDelete,
-                    child: const Icon(Icons.delete_outline,
-                        color: AppTheme.danger, size: 18),
-                  ),
-                ],
+                const Icon(Icons.more_vert, color: Colors.black38),
               ],
             ),
           ],
@@ -673,6 +853,24 @@ class _StaffCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    var path = Path();
+    path.lineTo(0, size.height - 40);
+    path.quadraticBezierTo(
+        size.width / 4, size.height, size.width / 2, size.height - 20);
+    path.quadraticBezierTo(
+        size.width * 3 / 4, size.height - 40, size.width, size.height - 10);
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
 class _EmptyStaff extends StatelessWidget {

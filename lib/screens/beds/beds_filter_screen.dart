@@ -95,118 +95,157 @@ class _BedsFilterScreenState extends State<BedsFilterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bgDark,
-      appBar: AppBar(
-        leading: BackButton(
-          onPressed: () => context.go('/dashboard'),
-          color: AppTheme.textSecondary,
-        ),
-        title: Text(
-          _title,
-          style: GoogleFonts.inter(
-            color: AppTheme.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: Column(
         children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: TextField(
-              controller: _searchCtrl,
-              style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Search by bed, room, staff name or ID...',
-                hintStyle: const TextStyle(color: AppTheme.textMuted),
-                prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textMuted),
-                suffixIcon: _searchCtrl.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: AppTheme.textMuted),
-                        onPressed: () => _searchCtrl.clear(),
-                      )
-                    : null,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                filled: true,
-                fillColor: AppTheme.bgCard,
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppTheme.divider),
+          // Purple Header
+          ClipPath(
+            clipper: _HeaderClipper(),
+            child: Container(
+              padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16, bottom: 40, left: 20, right: 20),
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF8B5CF6), Color(0xFF4C1D95)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppTheme.primary),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => context.go('/dashboard'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _title,
+                          style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Search bar (overlapping the header)
+          Transform.translate(
+            offset: const Offset(0, -30),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: TextField(
+                  controller: _searchCtrl,
+                  style: const TextStyle(color: Colors.black87),
+                  decoration: InputDecoration(
+                    hintText: 'Search by bed, room, staff name or ID...',
+                    hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
+                    prefixIcon: const Icon(Icons.search, color: Colors.black38),
+                    suffixIcon: _searchCtrl.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, color: Colors.black38),
+                            onPressed: () => _searchCtrl.clear(),
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  ),
                 ),
               ),
             ),
           ),
           
           Expanded(
-            child: _loading
-                ? const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        SkeletonCard(),
-                        SkeletonCard(),
-                        SkeletonCard(),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    color: AppTheme.primary,
-                    backgroundColor: AppTheme.bgCard,
-                    onRefresh: _load,
-                    child: _filteredBeds.isEmpty
-                        ? Center(
-                            child: SingleChildScrollView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.bed_outlined,
-                                    size: 64,
-                                    color: AppTheme.textMuted.withOpacity(0.3),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'No beds found',
-                                    style: GoogleFonts.inter(
-                                      color: AppTheme.textSecondary,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
+            child: Transform.translate(
+              offset: const Offset(0, -20),
+              child: _loading
+                  ? const Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          SkeletonCard(),
+                          SkeletonCard(),
+                          SkeletonCard(),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      color: AppTheme.primary,
+                      backgroundColor: Colors.white,
+                      onRefresh: _load,
+                      child: _filteredBeds.isEmpty
+                          ? Center(
+                              child: SingleChildScrollView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.bed_outlined,
+                                      size: 64,
+                                      color: Colors.grey.withValues(alpha: 0.3),
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Try adjusting your search query.',
-                                    style: GoogleFonts.inter(
-                                      color: AppTheme.textMuted,
-                                      fontSize: 13,
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'No beds found',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.black54,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Try adjusting your search query.',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.black45,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                              itemCount: _filteredBeds.length,
+                              itemBuilder: (context, index) {
+                                final bed = _filteredBeds[index];
+                                return _BedListTile(
+                                  bed: bed,
+                                  onTap: () {
+                                    if (bed.locationId != null && bed.roomId.isNotEmpty) {
+                                      context.go('/rooms/${bed.locationId}/${bed.roomId}');
+                                    }
+                                  },
+                                );
+                              },
                             ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _filteredBeds.length,
-                            itemBuilder: (context, index) {
-                              final bed = _filteredBeds[index];
-                              return _BedListTile(
-                                bed: bed,
-                                onTap: () {
-                                  if (bed.locationId != null && bed.roomId.isNotEmpty) {
-                                    context.go('/rooms/${bed.locationId}/${bed.roomId}');
-                                  }
-                                },
-                              );
-                            },
-                          ),
-                  ),
+                    ),
+            ),
           ),
         ],
       ),
@@ -235,14 +274,20 @@ class _BedListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: AppTheme.bgCard,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppTheme.divider),
-      ),
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primary.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -354,4 +399,22 @@ class _BedListTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    var path = Path();
+    path.lineTo(0, size.height - 30);
+    path.quadraticBezierTo(
+        size.width / 4, size.height, size.width / 2, size.height - 15);
+    path.quadraticBezierTo(
+        size.width * 3 / 4, size.height - 30, size.width, size.height - 5);
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

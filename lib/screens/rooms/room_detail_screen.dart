@@ -14,6 +14,7 @@ import '../../services/staff_service.dart';
 import '../../services/shift_service.dart';
 import '../../widgets/bed_tile.dart';
 import '../../widgets/loading_skeleton.dart';
+import '../../widgets/stat_card.dart';
 
 class RoomDetailScreen extends StatefulWidget {
   final String locationId;
@@ -57,43 +58,142 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     final isAdmin = provider.isAdmin;
 
     return Scaffold(
-      backgroundColor: AppTheme.bgDark,
-      appBar: AppBar(
-        leading: BackButton(
-          onPressed: () => context.go('/rooms/${widget.locationId}'),
-          color: AppTheme.textSecondary,
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_roomCode ?? 'Room Detail',
-                style: GoogleFonts.inter(
-                    color: AppTheme.textPrimary, fontWeight: FontWeight.w700)),
-            Text('${_beds.length} beds · ${_beds.where((b) => b.isVacant).length} vacant',
-                style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 11)),
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: RefreshIndicator(
+        color: AppTheme.primary,
+        backgroundColor: Colors.white,
+        onRefresh: _load,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Stack(
+                children: [
+                  // Purple Header
+                  ClipPath(
+                    clipper: _HeaderClipper(),
+                    child: Container(
+                      height: 280,
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFF4C1D95)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => context.go('/rooms/${widget.locationId}'),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(_roomCode ?? 'Room Detail',
+                                        style: GoogleFonts.inter(
+                                            color: Colors.white,
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 4),
+                                    Text('${_beds.length} beds · ${_beds.where((b) => b.isVacant).length} vacant',
+                                        style: GoogleFonts.inter(
+                                            color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
+                                  ],
+                                ),
+                              ),
+                              if (isAdmin)
+                                Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.add_box, color: Color(0xFF4C1D95)),
+                                    onPressed: () => _showAddBedDialog(context),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Overlapping content
+                  Container(
+                    margin: const EdgeInsets.only(top: 125),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Summary stats grid
+                        if (!_loading)
+                          GridView.count(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.72,
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: [
+                              StatCard(
+                                label: 'Total\nBeds',
+                                value: _beds.length,
+                                icon: Icons.bed,
+                                color: AppTheme.primary,
+                                trendText: '',
+                                trendUp: true,
+                              ),
+                              StatCard(
+                                label: 'Vacant\nBeds',
+                                value: _beds.where((b) => b.isVacant).length,
+                                icon: Icons.single_bed,
+                                color: AppTheme.success,
+                                trendText: '',
+                                trendUp: true,
+                              ),
+                              StatCard(
+                                label: 'Occupied\nBeds',
+                                value: _beds.where((b) => b.isOccupied).length,
+                                icon: Icons.person,
+                                color: AppTheme.warning,
+                                trendText: '',
+                                trendUp: false,
+                              ),
+                            ],
+                          ),
+                        const SizedBox(height: 24),
+                        // Beds List
+                        if (_loading)
+                          const Column(children: [SkeletonCard(), SkeletonCard()])
+                        else if (_beds.isEmpty)
+                          _EmptyBeds(onAdd: () => _showAddBedDialog(context))
+                        else
+                          _buildContent(context, isAdmin),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_box_outlined, color: AppTheme.primary),
-            tooltip: 'Add Bed',
-            onPressed: () => _showAddBedDialog(context),
-          ),
-        ],
       ),
-      body: _loading
-          ? const Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(children: [SkeletonCard(), SkeletonCard()]),
-            )
-          : RefreshIndicator(
-              color: AppTheme.primary,
-              backgroundColor: AppTheme.bgCard,
-              onRefresh: _load,
-              child: _beds.isEmpty
-                  ? _EmptyBeds(onAdd: () => _showAddBedDialog(context))
-                  : _buildContent(context, isAdmin),
-            ),
     );
   }
 
@@ -101,49 +201,35 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     final vacantBeds = _beds.where((b) => b.isVacant).toList();
     final occupiedBeds = _beds.where((b) => b.isOccupied).toList();
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Summary Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.bgCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.divider),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _SummaryStat(label: 'Total Beds', value: _beds.length.toString(), color: AppTheme.primary),
-              _SummaryStat(label: 'Vacant Beds', value: vacantBeds.length.toString(), color: AppTheme.success),
-              _SummaryStat(label: 'Occupied', value: occupiedBeds.length.toString(), color: AppTheme.warning),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        
         // Staff List
         Text('Staff in Room',
             style: GoogleFonts.inter(
-                color: AppTheme.textPrimary,
+                color: Colors.black87,
                 fontSize: 16,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         if (occupiedBeds.isEmpty)
-          Text('No staff assigned', style: GoogleFonts.inter(color: AppTheme.textMuted))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Text('No staff assigned', style: GoogleFonts.inter(color: AppTheme.textMuted)),
+          )
         else
           ...occupiedBeds.map((bed) => _StaffListTile(
                 bed: bed,
+                isAdmin: isAdmin,
                 onTap: () => _showBedActions(context, bed, isAdmin),
+                onEdit: () => _showEditBedDialog(context, bed),
               )),
 
-        const SizedBox(height: 24),
+        if (occupiedBeds.isNotEmpty) const SizedBox(height: 24),
 
         // Vacant Beds
         Text('Vacant Beds',
             style: GoogleFonts.inter(
-                color: AppTheme.textPrimary,
+                color: Colors.black87,
                 fontSize: 16,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
@@ -152,7 +238,9 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
         else
           ...vacantBeds.map((bed) => _VacantBedTile(
                 bed: bed,
+                isAdmin: isAdmin,
                 onTap: () => _showBedActions(context, bed, isAdmin),
+                onEdit: () => _showEditBedDialog(context, bed),
               )),
       ],
     );
@@ -447,6 +535,139 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
       ),
     );
   }
+
+  void _showEditBedDialog(BuildContext ctx, BedModel bed) {
+    final bedCodeCtrl = TextEditingController(text: bed.bedCode);
+    final nameCtrl = TextEditingController(text: bed.occupant?.name ?? '');
+    final staffIdCtrl = TextEditingController(text: bed.occupant?.staffId ?? '');
+    bool isSaving = false;
+
+    showDialog(
+      context: ctx,
+      builder: (dCtx) => StatefulBuilder(
+        builder: (dCtx, setS) => AlertDialog(
+          backgroundColor: AppTheme.bgCard,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Edit Bed Details', style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: bedCodeCtrl,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(labelText: 'Bed ID (Code)'),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: nameCtrl,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Occupant Name',
+                  hintText: 'Enter name (creates new staff if vacant)',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: staffIdCtrl,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Occupant ID (Staff ID)',
+                  hintText: 'Enter ID',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(dCtx),
+              child: Text('Cancel', style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: isSaving ? null : () async {
+                final newBedCode = bedCodeCtrl.text.trim();
+                final newName = nameCtrl.text.trim();
+                final newStaffId = staffIdCtrl.text.trim();
+
+                if (newBedCode.isEmpty) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Bed ID cannot be empty')));
+                  return;
+                }
+
+                setS(() => isSaving = true);
+                try {
+                  // 1. Update Bed Code if changed
+                  if (newBedCode != bed.bedCode) {
+                    await _bedService.updateBedCode(bed.id, newBedCode);
+                  }
+
+                  // 2. Handle Staff Updates
+                  if (bed.isOccupied && bed.occupant != null) {
+                    // Update existing staff
+                    Map<String, dynamic> updates = {};
+                    if (newName.isNotEmpty && newName != bed.occupant!.name) {
+                      updates['name'] = newName;
+                    }
+                    if (newStaffId.isNotEmpty && newStaffId != bed.occupant!.staffId) {
+                      updates['staff_id'] = newStaffId;
+                    }
+                    
+                    if (updates.isNotEmpty) {
+                      await _staffService.update(bed.occupant!.id, updates);
+                    }
+                  } else {
+                    // Bed is vacant or occupant is missing, but user provided a name -> Create and assign
+                    if (newName.isNotEmpty) {
+                      final generatedStaffId = newStaffId.isNotEmpty ? newStaffId : 'TEMP-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+                      
+                      final newStaff = await _staffService.create(StaffModel(
+                        id: '',
+                        staffId: generatedStaffId,
+                        name: newName,
+                        status: 'Active',
+                        createdAt: DateTime.now(),
+                      ));
+                      await _bedService.assignStaff(
+                        bedId: bed.id,
+                        staffId: newStaff.id,
+                        bedStatus: 'FULL',
+                      );
+                      await ShiftService().logShift(
+                        staffId: newStaff.id,
+                        fromBedId: null,
+                        toBedId: bed.id,
+                        shiftDate: DateTime.now(),
+                        reason: 'Initial assignment via edit',
+                      );
+                    } else if (newStaffId.isNotEmpty) {
+                       if (ctx.mounted) {
+                         ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Please provide a name to create a new staff member')));
+                       }
+                       setS(() => isSaving = false);
+                       return;
+                    }
+                  }
+
+                  if (ctx.mounted) {
+                    Navigator.pop(dCtx);
+                  }
+                  await _load();
+                } catch (e) {
+                  setS(() => isSaving = false);
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(minimumSize: Size.zero),
+              child: isSaving
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ActionTile extends StatelessWidget {
@@ -488,85 +709,97 @@ class _EmptyBeds extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.bed_outlined, color: AppTheme.textMuted, size: 56),
-          const SizedBox(height: 16),
-          Text('No beds in this room',
-              style: GoogleFonts.inter(
-                  color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Text('Tap the + icon to add beds',
-              style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 13)),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.bed_outlined, color: AppTheme.textMuted, size: 56),
+            const SizedBox(height: 16),
+            Text('No beds in this room',
+                style: GoogleFonts.inter(
+                    color: Colors.black87, fontWeight: FontWeight.w600, fontSize: 16)),
+            const SizedBox(height: 8),
+            Text('Tap the + button to add a bed',
+                style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 13)),
+          ],
+        ),
       ),
-    );
-  }
-}
-
-class _SummaryStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-
-  const _SummaryStat({required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(value,
-            style: GoogleFonts.inter(
-                color: color, fontSize: 24, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(label,
-            style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12)),
-      ],
     );
   }
 }
 
 class _StaffListTile extends StatelessWidget {
   final BedModel bed;
+  final bool isAdmin;
   final VoidCallback onTap;
-
-  const _StaffListTile({required this.bed, required this.onTap});
+  final VoidCallback onEdit;
+  const _StaffListTile({required this.bed, required this.isAdmin, required this.onTap, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
-    final occupant = bed.occupant;
-    final statusColor = occupant != null 
-        ? AppTheme.staffStatusColor(occupant.status) 
-        : AppTheme.warning;
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.bgCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.divider),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: AppTheme.primary.withOpacity(0.2),
-          child: const Icon(Icons.person, color: AppTheme.primary, size: 20),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primary.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
         ),
-        title: Text(occupant?.name ?? 'Unknown Staff (Data Error)',
-            style: GoogleFonts.inter(
-                color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-        subtitle: Text('ID: ${occupant?.staffId ?? 'N/A'} · Bed: ${bed.bedCode}',
-            style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12)),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: statusColor.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(occupant?.status ?? 'UNKNOWN',
-              style: GoogleFonts.inter(
-                  color: statusColor, fontSize: 11, fontWeight: FontWeight.w700)),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.person, color: AppTheme.primary),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(bed.occupant?.name ?? 'Unknown',
+                      style: GoogleFonts.inter(
+                          color: Colors.black87,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600)),
+                  Text(bed.occupant?.staffId ?? '',
+                      style: GoogleFonts.inter(
+                          color: AppTheme.textMuted, fontSize: 13)),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('Bed ${bed.bedNumber}',
+                    style: GoogleFonts.inter(
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14)),
+                Text(bed.position,
+                    style: GoogleFonts.inter(
+                        color: AppTheme.textMuted, fontSize: 12)),
+              ],
+            ),
+            if (isAdmin)
+              IconButton(
+                icon: const Icon(Icons.edit, color: AppTheme.primary, size: 20),
+                onPressed: onEdit,
+              )
+          ],
         ),
       ),
     );
@@ -575,37 +808,94 @@ class _StaffListTile extends StatelessWidget {
 
 class _VacantBedTile extends StatelessWidget {
   final BedModel bed;
+  final bool isAdmin;
   final VoidCallback onTap;
-
-  const _VacantBedTile({required this.bed, required this.onTap});
+  final VoidCallback onEdit;
+  const _VacantBedTile({required this.bed, required this.isAdmin, required this.onTap, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.bgCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.divider, style: BorderStyle.solid),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppTheme.success.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.bed, color: AppTheme.success, size: 20),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.success.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
         ),
-        title: Text('Bed ${bed.bedCode}',
-            style: GoogleFonts.inter(
-                color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-        subtitle: Text(kBedPositionLabels[bed.position] ?? bed.position,
-            style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12)),
-        trailing: Text('Vacant',
-            style: GoogleFonts.inter(color: AppTheme.success, fontWeight: FontWeight.w600)),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.success.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.single_bed, color: AppTheme.success),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Bed ${bed.bedNumber}',
+                      style: GoogleFonts.inter(
+                          color: Colors.black87,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600)),
+                  Text(kBedPositionLabels[bed.position] ?? bed.position,
+                      style: GoogleFonts.inter(
+                          color: AppTheme.textMuted, fontSize: 13)),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.success.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text('VACANT',
+                  style: GoogleFonts.inter(
+                      color: AppTheme.success,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700)),
+            ),
+            if (isAdmin)
+              IconButton(
+                icon: const Icon(Icons.edit, color: AppTheme.success, size: 20),
+                onPressed: onEdit,
+              )
+          ],
+        ),
       ),
     );
   }
+}
+
+class _HeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    var path = Path();
+    path.lineTo(0, size.height - 40);
+    path.quadraticBezierTo(
+        size.width / 4, size.height, size.width / 2, size.height - 20);
+    path.quadraticBezierTo(
+        size.width * 3 / 4, size.height - 40, size.width, size.height - 10);
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

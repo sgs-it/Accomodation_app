@@ -38,34 +38,112 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bgDark,
-      appBar: AppBar(
-        title: Text('Pending Requests',
-            style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-        bottom: TabBar(
-          controller: _tabs,
-          indicatorColor: AppTheme.primary,
-          labelColor: AppTheme.primary,
-          unselectedLabelColor: AppTheme.textMuted,
-          tabs: const [
-            Tab(text: 'Pending'),
-            Tab(text: 'Approved'),
-            Tab(text: 'Rejected'),
-          ],
-        ),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabs,
-              children: [
-                _RequestsList(status: 'pending'),
-                _RequestsList(status: 'approved'),
-                _RequestsList(status: 'rejected'),
-              ],
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Column(
+        children: [
+          // Purple Header
+          ClipPath(
+            clipper: _HeaderClipper(),
+            child: Container(
+              padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16, bottom: 40, left: 20, right: 20),
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF8B5CF6), Color(0xFF4C1D95)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Pending Requests',
+                          style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
+          ),
+          
+          Transform.translate(
+            offset: const Offset(0, -20),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+              ),
+              child: TabBar(
+                controller: _tabs,
+                indicatorColor: const Color(0xFF8B5CF6),
+                labelColor: const Color(0xFF8B5CF6),
+                unselectedLabelColor: Colors.black54,
+                indicatorSize: TabBarIndicatorSize.tab,
+                labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                tabs: const [
+                  Tab(text: 'Pending'),
+                  Tab(text: 'Approved'),
+                  Tab(text: 'Rejected'),
+                ],
+              ),
+            ),
+          ),
+
+          Expanded(
+            child: Transform.translate(
+              offset: const Offset(0, -10),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : TabBarView(
+                      controller: _tabs,
+                      children: const [
+                        _RequestsList(status: 'pending'),
+                        _RequestsList(status: 'approved'),
+                        _RequestsList(status: 'rejected'),
+                      ],
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
+}
+
+class _HeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    var path = Path();
+    path.lineTo(0, size.height - 30);
+    path.quadraticBezierTo(
+        size.width / 4, size.height, size.width / 2, size.height - 15);
+    path.quadraticBezierTo(
+        size.width * 3 / 4, size.height - 30, size.width, size.height - 5);
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
 class _RequestsList extends StatelessWidget {
@@ -93,9 +171,11 @@ class _RequestsList extends StatelessWidget {
     }
 
     return RefreshIndicator(
+      color: AppTheme.primary,
+      backgroundColor: Colors.white,
       onRefresh: () => context.read<AppProvider>().loadPendingChanges(),
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 80),
         itemCount: list.length,
         itemBuilder: (ctx, i) => _RequestCard(change: list[i]),
       ),
@@ -141,9 +221,16 @@ class _RequestCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppTheme.bgCard,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _statusColor.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: _statusColor.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,9 +286,9 @@ class _RequestCard extends StatelessWidget {
                           color: AppTheme.textMuted, fontSize: 12)),
                   Text(change.staffName,
                       style: GoogleFonts.inter(
-                          color: AppTheme.textPrimary,
+                          color: Colors.black87,
                           fontWeight: FontWeight.w600,
-                          fontSize: 12)),
+                          fontSize: 13)),
                 ]),
                 const SizedBox(height: 8),
 
@@ -213,11 +300,11 @@ class _RequestCard extends StatelessWidget {
                         children: [
                           Text('${_prettify(e.key)}: ',
                               style: GoogleFonts.inter(
-                                  color: AppTheme.textMuted, fontSize: 12)),
+                                  color: Colors.black54, fontSize: 12)),
                           Expanded(
                             child: Text(e.value.toString(),
                                 style: GoogleFonts.inter(
-                                    color: AppTheme.textPrimary,
+                                    color: Colors.black87,
                                     fontSize: 12)),
                           ),
                         ],
@@ -229,12 +316,12 @@ class _RequestCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppTheme.bgDark,
+                      color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text('Note: ${change.adminNote}',
                         style: GoogleFonts.inter(
-                            color: AppTheme.textSecondary,
+                            color: Colors.black54,
                             fontSize: 12,
                             fontStyle: FontStyle.italic)),
                   ),
@@ -244,7 +331,7 @@ class _RequestCard extends StatelessWidget {
                 Text(
                   _formatDate(change.createdAt),
                   style: GoogleFonts.inter(
-                      color: AppTheme.textMuted, fontSize: 11),
+                      color: Colors.black45, fontSize: 11),
                 ),
               ],
             ),
