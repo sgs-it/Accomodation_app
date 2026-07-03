@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme.dart';
 import '../../models/staff.dart';
 import '../../providers/app_provider.dart';
@@ -29,24 +30,20 @@ class _StaffListScreenState extends State<StaffListScreen>
   Map<String, List<PendingChange>> _pendingByStaff = {};
   String _statusFilter = '';
   late TabController _tabController;
+  List<Map<String, dynamic>> _admins = [];
 
   @override
   void initState() {
     super.initState();
     final provider = context.read<AppProvider>();
-    final isStaff = provider.isStaff;
-    if (isStaff) {
-      _tabController = TabController(length: 2, vsync: this);
-    }
+    _tabController = TabController(length: 2, vsync: this);
     _load();
   }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
-    if (context.read<AppProvider>().isStaff) {
-      _tabController.dispose();
-    }
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -64,6 +61,15 @@ class _StaffListScreenState extends State<StaffListScreen>
       for (final c in all) {
         final sid = c.payload['staff_id']?.toString() ?? '';
         _pendingByStaff.putIfAbsent(sid, () => []).add(c);
+      }
+      try {
+        final res = await Supabase.instance.client.rpc('get_admin_users');
+        if (res != null) {
+          _admins = List<Map<String, dynamic>>.from(
+              (res as List).map((x) => Map<String, dynamic>.from(x)));
+        }
+      } catch (e) {
+        debugPrint('Error fetching admins: $e');
       }
     } else if (provider.isStaff) {
       _myPending = await provider.pendingService.getMyChanges();
@@ -108,11 +114,29 @@ class _StaffListScreenState extends State<StaffListScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: RefreshIndicator(
-        color: AppTheme.primary,
-        backgroundColor: Colors.white,
-        onRefresh: _load,
-        child: CustomScrollView(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF8B5CF6),
+        title: Text('Staff & Admins',
+            style: GoogleFonts.inter(
+                color: Colors.white, fontWeight: FontWeight.w700)),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          labelStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+          tabs: const [Tab(text: 'Staff Members'), Tab(text: 'Admin Accounts')],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Staff Tab
+          RefreshIndicator(
+            color: AppTheme.primary,
+            backgroundColor: Colors.white,
+            onRefresh: _load,
+            child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
               child: Stack(
@@ -285,6 +309,155 @@ class _StaffListScreenState extends State<StaffListScreen>
           ],
         ),
       ),
+      // Admins Tab
+      _buildAdminsTab(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminsTab() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_admins.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.admin_panel_settings_outlined, color: AppTheme.textMuted, size: 56),
+            const SizedBox(height: 16),
+            Text('No Admin Accounts',
+                style: GoogleFonts.inter(
+                    color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+      itemCount: _admins.length,
+      itemBuilder: (ctx, i) {
+        final admin = _admins[i];
+        final email = admin['email'] as String? ?? 'Unknown';
+        final date = admin['created_at'] != null 
+          ? DateTime.tryParse(admin['created_at'].toString()) 
+          : null;
+        
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primary.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              )
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48, height: 48,
+                decoration: BoxDecoration(
+                  color: AppTheme.accent.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(Icons.admin_panel_settings, color: AppTheme.accent),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Admin User',
+                        style: GoogleFonts.inter(
+                            color: Colors.black87,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text(email,
+                        style: GoogleFonts.inter(
+                            color: AppTheme.textMuted,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'ADMIN ROLE',
+                        style: GoogleFonts.inter(
+                          color: AppTheme.accent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: AppTheme.danger),
+                onPressed: () => _confirmDeleteAdmin(context, admin['id'] as String, email),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteAdmin(BuildContext context, String adminId, String email) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.bgCard,
+        title: Text('Delete Admin', style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+        content: Text('Are you sure you want to delete the admin account for $email? They will lose access to the system.',
+            style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              setState(() => _loading = true);
+              try {
+                await Supabase.instance.client
+                    .from('user_roles')
+                    .delete()
+                    .eq('user_id', adminId);
+                _load();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Admin access revoked successfully')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.danger),
+                  );
+                }
+              } finally {
+                setState(() => _loading = false);
+              }
+            },
+            child: Text('Delete', style: GoogleFonts.inter(color: AppTheme.danger, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -393,7 +566,7 @@ class _StaffListScreenState extends State<StaffListScreen>
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -41,8 +41,8 @@ class MainShell extends StatelessWidget {
       bottomNavigationBar: showNav
           ? SafeArea(
               child: Container(
-                margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(32),
@@ -119,7 +119,7 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: isSelected
             ? BoxDecoration(
                 color: const Color(0xFF8B5CF6), // Purple accent

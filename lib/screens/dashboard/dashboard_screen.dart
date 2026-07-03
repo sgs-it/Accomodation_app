@@ -77,7 +77,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('Welcome, Admin 👋',
+                                        Text('Welcome, ${provider.isAdmin ? 'Admin' : (provider.myStaffRecord?['name']?.toString().split(' ').first ?? 'Staff')} 👋',
                                             style: GoogleFonts.inter(
                                                 color: Colors.white,
                                                 fontSize: 18,

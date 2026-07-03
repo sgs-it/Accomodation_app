@@ -14,8 +14,9 @@ class AuthService {
   /// If the input already contains '@' it's used as-is (admin).
   /// Otherwise, spaces and special chars are stripped and @staff.sgs.com is appended.
   static String resolveEmail(String input) {
-    if (input.contains('@')) return input.trim();
-    final clean = input.trim().replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
+    if (input.contains('@')) return input.trim().toLowerCase();
+    // Remove only whitespace, preserve hyphens/underscores, and lowercase it
+    final clean = input.trim().replaceAll(RegExp(r'\s+'), '').toLowerCase();
     return '$clean@staff.sgs.com';
   }
 

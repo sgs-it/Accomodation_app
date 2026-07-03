@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "728184809569",
+    "project_id": "staff-app-429f6",
+    "storage_bucket": "staff-app-429f6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:728184809569:android:7a7fe0ab62b38b50e7a220",
+        "android_client_info": {
+          "package_name": "com.sgsit.staff_accommodation_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzBH6M_952iM_zCleiMssxYO4yT-INrlk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

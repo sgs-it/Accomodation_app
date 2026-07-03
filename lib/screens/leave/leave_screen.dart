@@ -55,7 +55,7 @@ class _LeaveScreenState extends State<LeaveScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: Column(
+      body: Stack(children: [Column(
         children: [
           // Purple Header
           ClipPath(
@@ -158,16 +158,23 @@ class _LeaveScreenState extends State<LeaveScreen>
           ),
         ],
       ),
-      floatingActionButton: isStaff
-          ? FloatingActionButton.extended(
-              onPressed: () => _showLeaveRequestDialog(context, provider),
-              backgroundColor: AppTheme.vacation,
-              icon: const Icon(Icons.flight_takeoff_rounded, color: Colors.white),
-              label: Text('Request Leave',
-                  style: GoogleFonts.inter(
-                      color: Colors.white, fontWeight: FontWeight.w600)),
-            )
-          : null,
+      
+          if (isStaff)
+            Positioned(
+              right: 16,
+              bottom: 110,
+              child: FloatingActionButton.extended(
+                onPressed: () => _showLeaveRequestDialog(context, provider),
+                backgroundColor: AppTheme.vacation,
+                icon: const Icon(Icons.flight_takeoff_rounded, color: Colors.white),
+                label: Text('Request Leave',
+                    style: GoogleFonts.inter(
+                        color: Colors.white, fontWeight: FontWeight.w600)),
+              ),
+            ),
+        ],
+      ),
+
     );
   }
 
@@ -244,6 +251,7 @@ class _LeaveScreenState extends State<LeaveScreen>
 
     await showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: AppTheme.bgCard,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(

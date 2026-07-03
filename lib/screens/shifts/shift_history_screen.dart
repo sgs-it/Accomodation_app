@@ -61,7 +61,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: Column(
+      body: Stack(children: [Column(
         children: [
           // Purple Header
           ClipPath(
@@ -161,16 +161,23 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
           ),
         ],
       ),
-      floatingActionButton: isStaff
-          ? FloatingActionButton.extended(
-              onPressed: () => _showShiftRequestDialog(context, provider),
-              backgroundColor: AppTheme.primary,
-              icon: const Icon(Icons.swap_horiz_rounded, color: Colors.white),
-              label: Text('Request Shift',
-                  style: GoogleFonts.inter(
-                      color: Colors.white, fontWeight: FontWeight.w600)),
-            )
-          : null,
+      
+          if (isStaff)
+            Positioned(
+              right: 16,
+              bottom: 110,
+              child: FloatingActionButton.extended(
+                onPressed: () => _showShiftRequestDialog(context, provider),
+                backgroundColor: AppTheme.primary,
+                icon: const Icon(Icons.swap_horiz_rounded, color: Colors.white),
+                label: Text('Request Shift',
+                    style: GoogleFonts.inter(
+                        color: Colors.white, fontWeight: FontWeight.w600)),
+              ),
+            ),
+        ],
+      ),
+
     );
   }
 
@@ -397,6 +404,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
 
     await showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: AppTheme.bgCard,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(

@@ -139,7 +139,7 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         children: [
           // Profile header
           Container(

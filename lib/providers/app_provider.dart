@@ -11,6 +11,7 @@ import '../services/staff_service.dart';
 import '../services/shift_service.dart';
 import '../services/auth_service.dart';
 import '../services/pending_service.dart';
+import '../services/fcm_service.dart';
 
 class AppProvider extends ChangeNotifier {
   final _locationService = LocationService();
@@ -56,6 +57,10 @@ class AppProvider extends ChangeNotifier {
     _setLoading(true);
     try {
       _role = await _authService.getCurrentRole();
+      
+      // Setup push notifications
+      await FcmService().setupFCM();
+
       if (isStaff) {
         _myStaffRecord = await _authService.getMyStaffRecord();
       }

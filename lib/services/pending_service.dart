@@ -1,5 +1,6 @@
 // lib/services/pending_service.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PendingChange {
@@ -64,6 +65,19 @@ class PendingService {
       'payload': payload,
       'status': 'pending',
     });
+
+    try {
+      final String typeDisplay = changeType == 'leave_request' ? 'Leave' : 'Room Shift';
+      await _client.functions.invoke(
+        'notify_admins',
+        body: {
+          'title': 'New $typeDisplay Request',
+          'body': 'Staff member <b>$staffName</b> has submitted a new $typeDisplay request.<br/><br/>Please review it in the Admin Dashboard.'
+        },
+      );
+    } catch (e) {
+      debugPrint('Error sending admin notification: $e');
+    }
   }
 
   /// Get all pending changes (admin sees all, staff sees their own)
