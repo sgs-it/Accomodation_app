@@ -523,7 +523,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(dCtx);
-                final bedCode = '${_roomCode ?? widget.roomId}-$bedNumber';
+                final bedCode = '${_roomCode ?? widget.roomId}-${bedNumber.toString().padLeft(3, '0')}';
                 try {
                   await _bedService.create(BedModel(
                     id: '',
