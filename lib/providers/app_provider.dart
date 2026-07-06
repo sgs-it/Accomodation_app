@@ -1,6 +1,7 @@
 // lib/providers/app_provider.dart
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/location.dart';
 import '../models/room.dart';
 import '../models/staff.dart';
@@ -33,9 +34,11 @@ class AppProvider extends ChangeNotifier {
   // Current logged-in staff record (for staff role)
   Map<String, dynamic>? _myStaffRecord;
   int _pendingCount = 0;
+  int _totalOnLeaveStaff = 0;
 
   // Getters
   List<LocationModel>    get locations     => _locations;
+  int                    get totalOnLeaveStaff => _totalOnLeaveStaff;
   List<RoomModel>        get rooms         => _rooms;
   List<StaffModel>       get staff         => _staff;
   List<ShiftHistoryModel> get shifts       => _shifts;
@@ -79,6 +82,15 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> loadLocations() async {
     _locations = await _locationService.getAll();
+    try {
+      final staffLeaveResp = await Supabase.instance.client
+          .from('staff')
+          .select('id')
+          .eq('status', 'On Leave');
+      _totalOnLeaveStaff = (staffLeaveResp as List).length;
+    } catch (e) {
+      debugPrint('Error fetching on leave staff count: $e');
+    }
     notifyListeners();
   }
 
@@ -110,7 +122,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> approveChange(PendingChange change, {String? note}) async {
     await _pendingService.approve(change, note: note);
-    await Future.wait([loadPendingChanges(), refreshPendingCount()]);
+    await Future.wait([loadPendingChanges(), refreshPendingCount(), loadLocations(), loadStaff()]);
   }
 
   Future<void> rejectChange(PendingChange change, {required String reason}) async {
@@ -122,5 +134,5 @@ class AppProvider extends ChangeNotifier {
   int get totalBeds     => _locations.fold(0, (s, l) => s + l.totalBeds);
   int get totalOccupied => _locations.fold(0, (s, l) => s + l.occupiedBeds);
   int get totalVacant   => _locations.fold(0, (s, l) => s + l.vacantBeds);
-  int get totalOnLeave  => _locations.fold(0, (s, l) => s + l.onLeaveBeds);
+  int get totalOnLeave  => _totalOnLeaveStaff;
 }

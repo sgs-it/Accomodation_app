@@ -115,6 +115,18 @@ class PendingService {
     return data.length;
   }
 
+  /// Get approved leave requests for a specific staff
+  Future<List<PendingChange>> getApprovedLeavesForStaff(String staffId) async {
+    final data = await _client
+        .from('pending_changes')
+        .select()
+        .eq('status', 'approved')
+        .eq('change_type', 'leave_request')
+        .eq('target_id', staffId)
+        .order('created_at', ascending: false);
+    return data.map((j) => PendingChange.fromJson(j)).toList();
+  }
+
   /// Admin approves a change — applies it to the target table
   Future<void> approve(PendingChange change, {String? note}) async {
     // Apply the change to the real table if applicable
@@ -123,17 +135,19 @@ class PendingService {
 
       if (change.changeType == 'leave_request' && change.targetTable == 'staff') {
         updatePayload = {'status': 'On Leave'};
-        // Also update bed status to VACATION
         final assignResp = await _client
             .from('bed_assignments')
             .select('bed_id')
             .eq('staff_id', change.targetId!)
             .maybeSingle();
         if (assignResp != null) {
-          await _client
-              .from('beds')
-              .update({'status': 'VACATION'})
-              .eq('id', assignResp['bed_id'] as String);
+          final bedId = assignResp['bed_id'] as String;
+          if (change.payload['leave_type'] == 'Annual leave') {
+            await _client.from('beds').update({'status': 'VACANT'}).eq('id', bedId);
+            await _client.from('bed_assignments').delete().eq('staff_id', change.targetId!);
+          } else {
+            await _client.from('beds').update({'status': 'VACATION'}).eq('id', bedId);
+          }
         }
       } else if (change.changeType == 'shift_request' && change.targetTable == 'staff') {
         // A room shift might require manual assignment by admin; no direct staff table update needed

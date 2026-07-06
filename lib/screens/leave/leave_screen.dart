@@ -245,10 +245,6 @@ class _LeaveScreenState extends State<LeaveScreen>
       return;
     }
 
-    final reasonCtrl = TextEditingController();
-    final fromCtrl = TextEditingController();
-    final toCtrl = TextEditingController();
-
     await showModalBottomSheet(
       context: context,
       useRootNavigator: true,
@@ -257,115 +253,372 @@ class _LeaveScreenState extends State<LeaveScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => Padding(
-          padding: EdgeInsets.only(
-            left: 24, right: 24, top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Handle bar
-              Center(
-                child: Container(
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(
-                    color: AppTheme.divider,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text('Submit Request',
-                  style: GoogleFonts.inter(
-                      color: AppTheme.textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text('Your request will be sent to admin for approval',
-                  style: GoogleFonts.inter(
-                      color: AppTheme.textSecondary, fontSize: 13)),
-              const SizedBox(height: 24),
-
-              _buildDateRow(ctx, 'From Date', fromCtrl),
-              const SizedBox(height: 12),
-              _buildDateRow(ctx, 'To Date', toCtrl),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: reasonCtrl,
-                maxLines: 3,
-                style: const TextStyle(color: AppTheme.textPrimary),
-                decoration: const InputDecoration(
-                  labelText: 'Reason',
-                  hintText: 'Describe your reason...',
-                  prefixIcon: Icon(Icons.notes_rounded, color: AppTheme.textMuted),
-                  alignLabelWithHint: true,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    if (reasonCtrl.text.trim().isEmpty) return;
-                    Navigator.pop(ctx);
-
-                    final payload = <String, dynamic>{
-                      'staff_name': staffRecord['name'],
-                      'staff_id': staffRecord['staff_id'],
-                      'reason': reasonCtrl.text.trim(),
-                    };
-                    if (fromCtrl.text.isNotEmpty) payload['from_date'] = fromCtrl.text;
-                    if (toCtrl.text.isNotEmpty) payload['to_date'] = toCtrl.text;
-
-                    try {
-                      await provider.pendingService.submitChange(
-                        staffName: staffRecord['name'] as String? ?? 'Staff',
-                        changeType: 'leave_request',
-                        targetTable: 'staff',
-                        targetId: staffRecord['id'] as String?,
-                        payload: payload,
-                      );
-                      await provider.loadPendingChanges();
-                      _load();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Leave request submitted! Waiting for admin approval.'),
-                            backgroundColor: AppTheme.success,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error: $e'),
-                              backgroundColor: AppTheme.danger),
-                        );
-                      }
-                    }
-                  },
-                  icon: const Icon(Icons.flight_takeoff_rounded),
-                  label: const Text('Submit Leave Request'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.vacation,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      builder: (ctx) => _LeaveRequestSheet(
+        provider: provider,
+        staffRecord: staffRecord,
+        onComplete: () {
+          _load();
+        },
       ),
     );
   }
+}
 
-  Widget _buildDateRow(BuildContext context, String label, TextEditingController ctrl) {
+class _LeaveRequestSheet extends StatefulWidget {
+  final AppProvider provider;
+  final Map<String, dynamic> staffRecord;
+  final VoidCallback onComplete;
+
+  const _LeaveRequestSheet({
+    required this.provider,
+    required this.staffRecord,
+    required this.onComplete,
+  });
+
+  @override
+  State<_LeaveRequestSheet> createState() => _LeaveRequestSheetState();
+}
+
+class _LeaveRequestSheetState extends State<_LeaveRequestSheet> {
+  final _reasonCtrl = TextEditingController();
+  final _fromCtrl = TextEditingController();
+  final _toCtrl = TextEditingController();
+  DateTime? _fromDate;
+  DateTime? _toDate;
+
+  String _leaveType = 'Sick Leave';
+  final List<String> _leaveTypes = [
+    'Sick Leave',
+    'Annual leave',
+    'Personal leave',
+    'Emergency Leave'
+  ];
+  bool _hasSupportingDocs = false;
+
+  int _pastSickLeaveCount = 0;
+  int _pastAnnualLeaveDays = 0;
+
+  bool _isLoading = true;
+  String _error = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPastLeaves();
+  }
+
+  Future<void> _fetchPastLeaves() async {
+    try {
+      final pastLeaves = await widget.provider.pendingService
+          .getApprovedLeavesForStaff(widget.staffRecord['id'] as String);
+      
+      final now = DateTime.now();
+      final twoYearsAgo = now.subtract(const Duration(days: 365 * 2));
+      
+      for (var leave in pastLeaves) {
+        final type = leave.payload['leave_type'];
+        if (type == 'Sick Leave' && leave.createdAt.year == now.year) {
+          _pastSickLeaveCount++;
+        } else if (type == 'Annual leave' && leave.createdAt.isAfter(twoYearsAgo)) {
+          _pastAnnualLeaveDays += (leave.payload['duration_days'] as num?)?.toInt() ?? 0;
+        }
+      }
+      
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  int get _requestedDuration {
+    if (_fromDate == null || _toDate == null) return 0;
+    // +1 to include both start and end days
+    return _toDate!.difference(_fromDate!).inDays + 1;
+  }
+
+  void _submit() async {
+    if (_reasonCtrl.text.trim().isEmpty) {
+      _showError('Please provide a reason.');
+      return;
+    }
+    if (_fromDate == null || _toDate == null) {
+      _showError('Please select From and To dates.');
+      return;
+    }
+    if (_toDate!.isBefore(_fromDate!)) {
+      _showError('To Date cannot be before From Date.');
+      return;
+    }
+
+    final duration = _requestedDuration;
+
+    // Validate based on leave type rules
+    if (_leaveType == 'Emergency Leave') {
+      if (duration < 1 || duration > 10) {
+        _showError('Emergency Leave must be between 1 and 10 days.');
+        return;
+      }
+    } else if (_leaveType == 'Annual leave') {
+      if (duration < 7) {
+        _showError('Annual leave must be at least 7 days.');
+        return;
+      }
+      if (_pastAnnualLeaveDays + duration > 60) {
+        _showError('You cannot exceed 60 days of Annual leave per 2 years. You have already taken $_pastAnnualLeaveDays days.');
+        return;
+      }
+    }
+
+    Navigator.pop(context); // Close sheet
+
+    final payload = <String, dynamic>{
+      'staff_name': widget.staffRecord['name'],
+      'staff_id': widget.staffRecord['staff_id'],
+      'reason': _reasonCtrl.text.trim(),
+      'leave_type': _leaveType,
+      'duration_days': duration,
+      'from_date': _fromCtrl.text,
+      'to_date': _toCtrl.text,
+    };
+
+    if (_leaveType == 'Sick Leave') {
+      payload['supporting_docs_provided'] = _hasSupportingDocs;
+      payload['past_sick_leaves_this_year'] = _pastSickLeaveCount;
+    }
+
+    try {
+      await widget.provider.pendingService.submitChange(
+        staffName: widget.staffRecord['name'] as String? ?? 'Staff',
+        changeType: 'leave_request',
+        targetTable: 'staff',
+        targetId: widget.staffRecord['id'] as String?,
+        payload: payload,
+      );
+      await widget.provider.loadPendingChanges();
+      widget.onComplete();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Leave request submitted! Waiting for admin approval.'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError('Error: $e');
+      }
+    }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: AppTheme.danger),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Padding(
+        padding: const EdgeInsets.all(48.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+          ],
+        ),
+      );
+    }
+    
+    if (_error.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: AppTheme.danger, size: 48),
+            const SizedBox(height: 16),
+            Text('Error loading history: $_error', style: const TextStyle(color: AppTheme.danger)),
+          ],
+        ),
+      );
+    }
+
+    final bool showSalaryWarning = _leaveType == 'Sick Leave' && (_pastSickLeaveCount + 1) > 12;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24, right: 24, top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+          // Handle bar
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text('Request Leave',
+              style: GoogleFonts.inter(
+                  color: AppTheme.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text('Your request will be sent to admin for approval',
+              style: GoogleFonts.inter(
+                  color: AppTheme.textSecondary, fontSize: 13)),
+          const SizedBox(height: 24),
+
+          // Leave Type Dropdown
+          Text('Leave Type', style: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 12)),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppTheme.divider),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _leaveType,
+                isExpanded: true,
+                dropdownColor: AppTheme.bgCard,
+                icon: const Icon(Icons.arrow_drop_down, color: AppTheme.textPrimary),
+                style: GoogleFonts.inter(color: AppTheme.textPrimary, fontSize: 14),
+                items: _leaveTypes.map((type) {
+                  return DropdownMenuItem(value: type, child: Text(type));
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _leaveType = val);
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Date Rows
+          Row(
+            children: [
+              Expanded(child: _buildDateRow('From Date', _fromCtrl, true)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildDateRow('To Date', _toCtrl, false)),
+            ],
+          ),
+          
+          if (_fromDate != null && _toDate != null && _requestedDuration > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Duration: $_requestedDuration day(s)',
+                style: GoogleFonts.inter(color: AppTheme.primary, fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ),
+
+          const SizedBox(height: 16),
+
+          // Sick Leave specific fields
+          if (_leaveType == 'Sick Leave') ...[
+            if (showSalaryWarning)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.danger.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.danger.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: AppTheme.danger, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Sick leave finished and salary will be deducted.',
+                        style: GoogleFonts.inter(color: AppTheme.danger, fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.bgDark,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.divider),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Supporting documents have?', style: GoogleFonts.inter(color: AppTheme.textPrimary, fontWeight: FontWeight.w500)),
+                      Switch(
+                        value: _hasSupportingDocs,
+                        onChanged: (v) => setState(() => _hasSupportingDocs = v),
+                        activeColor: AppTheme.primary,
+                      ),
+                    ],
+                  ),
+                  Text('The supporting document can be submitted Directly.', style: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 12)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          TextField(
+            controller: _reasonCtrl,
+            maxLines: 2,
+            style: const TextStyle(color: AppTheme.textPrimary),
+            decoration: const InputDecoration(
+              labelText: 'Reason',
+              hintText: 'Describe your reason...',
+              prefixIcon: Icon(Icons.notes_rounded, color: AppTheme.textMuted),
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _submit,
+              icon: const Icon(Icons.flight_takeoff_rounded),
+              label: const Text('Submit Leave Request'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.vacation,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  Widget _buildDateRow(String label, TextEditingController ctrl, bool isFrom) {
     return GestureDetector(
       onTap: () async {
         final picked = await showDatePicker(
@@ -384,9 +637,11 @@ class _LeaveScreenState extends State<LeaveScreen>
           ),
         );
         if (picked != null) {
-          ctrl.text =
-              '${picked.day}/${picked.month}/${picked.year}';
-          setState(() {});
+          ctrl.text = '${picked.day}/${picked.month}/${picked.year}';
+          setState(() {
+            if (isFrom) _fromDate = picked;
+            else _toDate = picked;
+          });
         }
       },
       child: AbsorbPointer(
@@ -395,8 +650,7 @@ class _LeaveScreenState extends State<LeaveScreen>
           style: const TextStyle(color: AppTheme.textPrimary),
           decoration: InputDecoration(
             labelText: label,
-            prefixIcon: const Icon(Icons.calendar_today_outlined,
-                color: AppTheme.textMuted),
+            prefixIcon: const Icon(Icons.calendar_today_outlined, color: AppTheme.textMuted),
             hintText: 'Select date',
           ),
         ),
@@ -541,8 +795,9 @@ class _MyRequestCard extends StatelessWidget {
                               Expanded(
                                 child: Text(e.value.toString(),
                                     style: GoogleFonts.inter(
-                                        color: AppTheme.textPrimary,
-                                        fontSize: 12)),
+                                        color: const Color(0xFF1E293B),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500)),
                               ),
                             ],
                           ),

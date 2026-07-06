@@ -85,7 +85,32 @@ class StaffService {
   }
 
   Future<void> delete(String id) async {
+    // 1. Get the staff to find their auth_user_id and bed assignment
+    final staffResp = await _client.from('staff').select('auth_user_id').eq('id', id).maybeSingle();
+    
+    // 2. Unassign from bed and mark bed as vacant
+    final assignResp = await _client.from('bed_assignments').select('bed_id').eq('staff_id', id).maybeSingle();
+    if (assignResp != null) {
+      final bedId = assignResp['bed_id'];
+      // Delete assignment
+      await _client.from('bed_assignments').delete().eq('staff_id', id);
+      // Make bed vacant
+      await _client.from('beds').update({'status': 'VACANT'}).eq('id', bedId);
+    }
+
+    // 3. Delete any pending requests and shift history
+    await _client.from('pending_changes').delete().eq('target_id', id);
+    await _client.from('shift_history').delete().eq('staff_id', id);
+    
+    // 4. Delete from staff
     await _client.from('staff').delete().eq('id', id);
+    
+    // 5. Delete from user_roles and auth.users
+    if (staffResp != null && staffResp['auth_user_id'] != null) {
+       await _client.from('user_roles').delete().eq('user_id', staffResp['auth_user_id']);
+       // Invoke the secure Postgres RPC to delete the authentication credentials
+       await _client.rpc('delete_user_account', params: {'target_user_id': staffResp['auth_user_id']});
+    }
   }
 
   Future<void> markOnLeave(String id) async {

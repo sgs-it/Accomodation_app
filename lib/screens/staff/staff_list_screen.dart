@@ -31,6 +31,7 @@ class _StaffListScreenState extends State<StaffListScreen>
   String _statusFilter = '';
   late TabController _tabController;
   List<Map<String, dynamic>> _admins = [];
+  int _unassignedCount = 0;
 
   @override
   void initState() {
@@ -71,6 +72,35 @@ class _StaffListScreenState extends State<StaffListScreen>
       } catch (e) {
         debugPrint('Error fetching admins: $e');
       }
+      try {
+        // Unassigned = On Leave staff with no bed assignment
+        final uData = await Supabase.instance.client
+            .from('staff')
+            .select('id')
+            .eq('status', 'On Leave');
+        
+        if (uData.isEmpty) {
+          _unassignedCount = 0;
+        } else {
+          final staffIds = uData.map((s) => s['id']).toList();
+          final activeAssignments = await Supabase.instance.client
+              .from('bed_assignments')
+              .select('staff_id')
+              .inFilter('staff_id', staffIds);
+              
+          final assignedStaffIds = activeAssignments.map((a) => a['staff_id']).toSet();
+          int count = 0;
+          for (final row in uData) {
+            if (!assignedStaffIds.contains(row['id'])) count++;
+          }
+          _unassignedCount = count;
+        }
+      } catch (e) {
+        debugPrint('Error fetching unassigned: $e');
+      }
+      // Also refresh provider so dashboard/other screens stay in sync
+      await provider.loadStaff();
+      await provider.loadLocations();
     } else if (provider.isStaff) {
       _myPending = await provider.pendingService.getMyChanges();
     }
@@ -197,16 +227,16 @@ class _StaffListScreenState extends State<StaffListScreen>
                       children: [
                         // Summary stats grid
                         GridView.count(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 1.25,
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 0.72,
                           padding: EdgeInsets.zero,
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           children: [
                             StatCard(
-                              label: 'Total Staff',
+                              label: 'Total\nStaff',
                               value: totalStaff,
                               icon: Icons.people,
                               color: AppTheme.primary,
@@ -215,13 +245,23 @@ class _StaffListScreenState extends State<StaffListScreen>
                               sparklineData: const [3.0, 4.0, 3.0, 5.0, 4.0, 6.0, 5.0],
                             ),
                             StatCard(
-                              label: 'On Leave',
+                              label: 'On\nLeave',
                               value: onLeaveStaff,
                               icon: Icons.event_busy,
                               color: AppTheme.warning,
                               trendText: '',
                               trendUp: false,
+                              onTap: () => context.push('/on-leave'),
                               sparklineData: const [2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0],
+                            ),
+                            StatCard(
+                              label: 'Unassigned\nStaff',
+                              value: _unassignedCount,
+                              icon: Icons.beach_access,
+                              color: AppTheme.accent,
+                              trendText: '',
+                              trendUp: false,
+                              onTap: () => context.push('/unassigned'),
                             ),
                           ],
                         ),
@@ -293,8 +333,28 @@ class _StaffListScreenState extends State<StaffListScreen>
                                         onTap: () => context.go('/staff/${_staff[i].id}'),
                                         onDelete: isAdmin
                                             ? () async {
-                                                await StaffService().delete(_staff[i].id);
-                                                _load();
+                                                setState(() => _loading = true);
+                                                try {
+                                                  await StaffService().delete(_staff[i].id);
+                                                  
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      const SnackBar(content: Text('Staff deleted successfully')),
+                                                    );
+                                                  }
+                                                } catch (e) {
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text('Failed to delete staff: $e'),
+                                                        backgroundColor: AppTheme.danger,
+                                                      ),
+                                                    );
+                                                  }
+                                                } finally {
+                                                  _load();
+                                                  provider.loadLocations();
+                                                }
                                               }
                                             : null,
                                       );
@@ -1018,7 +1078,36 @@ class _StaffCard extends StatelessWidget {
                           fontWeight: FontWeight.bold),
                     ),
                   ),
-                const Icon(Icons.more_vert, color: Colors.black38),
+                if (isAdmin && onDelete != null)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: AppTheme.danger),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: AppTheme.bgCard,
+                          title: const Text('Delete Staff'),
+                          content: Text('Are you sure you want to delete ${staff.name}?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                onDelete!();
+                              },
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  )
+                else
+                  const Icon(Icons.more_vert, color: Colors.black38),
               ],
             ),
           ],

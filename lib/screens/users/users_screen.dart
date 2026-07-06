@@ -89,14 +89,18 @@ class _UsersScreenState extends State<UsersScreen> {
     if (bed == null) return;
     setState(() {
       _selectedBed = bed;
-      _passCtrl.text = bed.bedCode;
     });
   }
 
   Future<void> _createAccount() async {
     final id   = _staffIdCtrl.text.trim();
-    final pass = _passCtrl.text;
+    String pass = _passCtrl.text;
     final name = _nameCtrl.text.trim();
+    
+    if (_selectedRole == 'staff') {
+      pass = 'SGS$id';
+    }
+    
     if (id.isEmpty || pass.isEmpty || name.isEmpty) {
       setState(() => _message = '✗ All fields are required.');
       return;
@@ -128,11 +132,9 @@ class _UsersScreenState extends State<UsersScreen> {
         selectedBedId: _selectedRole == 'staff' ? _selectedBed?.id : null,
       );
       
-      // Reload provider data to update stats and list
-      await provider.init();
-
+      final successMsg = '✓ $_selectedRole account created and bed assigned for $name ($id)';
+      
       setState(() {
-        _message = '✓ $_selectedRole account created and bed assigned for $name ($id)';
         _staffIdCtrl.clear();
         _passCtrl.clear();
         _nameCtrl.clear();
@@ -141,6 +143,13 @@ class _UsersScreenState extends State<UsersScreen> {
         _selectedBed = null;
         _rooms = [];
         _beds = [];
+      });
+
+      // Reload provider data to update stats and list
+      await provider.init();
+
+      setState(() {
+        _message = successMsg;
       });
     } catch (e) {
       setState(() => _message = '✗ Error: $e');
@@ -349,21 +358,21 @@ class _UsersScreenState extends State<UsersScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            TextField(
-              controller: _passCtrl,
-              obscureText: true,
-              style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: InputDecoration(
-                labelText: _selectedRole == 'admin'
-                    ? 'Password'
-                    : 'Default Password (auto-filled on bed select)',
-                hintText: _selectedRole == 'admin'
-                    ? 'Minimum 6 characters'
-                    : 'Select a bed to auto-fill password',
-                prefixIcon: const Icon(Icons.lock_outline, color: AppTheme.textMuted),
+            if (_selectedRole == 'admin') ...[
+              TextField(
+                controller: _passCtrl,
+                obscureText: true,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  hintText: 'Minimum 6 characters',
+                  prefixIcon: Icon(Icons.lock_outline, color: AppTheme.textMuted),
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
+            ] else ...[
+              const SizedBox(height: 10),
+            ],
 
             if (_message != null)
               Container(

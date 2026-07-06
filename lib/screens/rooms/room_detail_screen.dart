@@ -12,6 +12,7 @@ import '../../providers/app_provider.dart';
 import '../../services/bed_service.dart';
 import '../../services/staff_service.dart';
 import '../../services/shift_service.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/bed_tile.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/stat_card.dart';
@@ -447,6 +448,18 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                         if (statusToSet == 'VACATION') {
                           await _staffService.update(selected!.id, {'status': 'On Leave'});
                         }
+                        
+                        // Update password to new bed ID
+                        try {
+                          await AuthService().updatePassword(selected!.id, bed.bedCode);
+                        } catch (e) {
+                          debugPrint('Failed to update password: $e');
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(content: Text('Bed assigned, but password update failed: $e')));
+                          }
+                        }
+                        
                         await _load();
                       } catch (e) {
                         if (ctx.mounted) {

@@ -208,6 +208,9 @@ class _RequestCard extends StatelessWidget {
   String get _typeLabel {
     switch (change.changeType) {
       case 'shift_request': return 'Room Shift Request';
+      case 'leave_request':
+        final lType = change.payload['leave_type'] as String?;
+        return lType != null ? '$lType Request' : 'Leave Request';
       case 'profile_edit':  return 'Profile Edit';
       case 'new_entry':     return 'New Data Entry';
       case 'status_change': return 'Status Change';
@@ -293,7 +296,9 @@ class _RequestCard extends StatelessWidget {
                 const SizedBox(height: 8),
 
                 // Payload details
-                ...change.payload.entries.map((e) => Padding(
+                ...change.payload.entries
+                  .where((e) => e.key != 'staff_name' && e.key != 'staff_id' && e.key != 'past_sick_leaves_this_year' && e.key != 'leave_type')
+                  .map((e) => Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,6 +315,53 @@ class _RequestCard extends StatelessWidget {
                         ],
                       ),
                     )),
+                    
+                // Special rendering for Sick Leave
+                if (change.changeType == 'leave_request' && change.payload['leave_type'] == 'Sick Leave') ...[
+                  const SizedBox(height: 8),
+                  Builder(
+                    builder: (ctx) {
+                      final past = (change.payload['past_sick_leaves_this_year'] as num?)?.toInt() ?? 0;
+                      // Include this current request in the total requested times
+                      final totalTimes = past + 1;
+                      final isOverLimit = totalTimes > 12;
+
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isOverLimit ? AppTheme.danger.withValues(alpha: 0.1) : AppTheme.bgDark,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: isOverLimit ? AppTheme.danger.withValues(alpha: 0.3) : AppTheme.divider),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Sick Leave Times (This Year): $totalTimes / 12',
+                              style: GoogleFonts.inter(
+                                color: isOverLimit ? AppTheme.danger : AppTheme.textPrimary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                            if (isOverLimit)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'Sick leave finished and salary will be deducted.',
+                                  style: GoogleFonts.inter(
+                                    color: AppTheme.danger,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
 
                 if (change.adminNote != null) ...[
                   const SizedBox(height: 8),

@@ -123,4 +123,19 @@ class AuthService {
   }
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
+
+  /// Update a user's password using the Edge Function
+  Future<void> updatePassword(String userId, String newPassword) async {
+    final response = await _client.functions.invoke(
+      'update_password',
+      body: {
+        'user_id': userId,
+        'password': newPassword,
+      },
+    );
+    
+    if (response.status != 200) {
+      throw Exception('Failed to update password: ${response.data}');
+    }
+  }
 }

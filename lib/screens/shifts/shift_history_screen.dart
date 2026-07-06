@@ -705,11 +705,11 @@ class _MyRequestCard extends StatelessWidget {
                             children: [
                               Text('${_pretty(e.key)}: ',
                                   style: GoogleFonts.inter(
-                                      color: AppTheme.textMuted, fontSize: 12)),
+                                      color: Colors.black54, fontSize: 12)),
                               Expanded(
                                 child: Text(e.value.toString(),
                                     style: GoogleFonts.inter(
-                                        color: AppTheme.textPrimary,
+                                        color: Colors.black87,
                                         fontSize: 12)),
                               ),
                             ],

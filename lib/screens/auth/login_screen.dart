@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../providers/app_provider.dart';
+import '../../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -55,6 +56,12 @@ class _LoginScreenState extends State<LoginScreen>
         password:   _passCtrl.text,
       );
       await provider.init();
+      
+      if (provider.role == UserRole.unknown) {
+        await provider.authService.signOut();
+        throw Exception('deactivated');
+      }
+      
       if (mounted) context.go('/dashboard');
     } catch (e) {
       final String errorStr = e.toString().toLowerCase();
@@ -64,6 +71,8 @@ class _LoginScreenState extends State<LoginScreen>
             errorStr.contains('failed host lookup') ||
             errorStr.contains('clientexception')) {
           _error = 'Network error. Please check your internet connection and try again.';
+        } else if (errorStr.contains('deactivated')) {
+          _error = 'This account has been deleted or deactivated.';
         } else {
           _error = _isStaffLogin
               ? 'Invalid Staff ID or password. Try your Occupant ID and Bed ID.'
@@ -237,32 +246,6 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
 
-                  if (_isStaffLogin) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: AppTheme.primary.withValues(alpha: 0.2)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.info_outline,
-                              color: AppTheme.primary, size: 16),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Username: Your Occupant ID  •  Password: Your Bed ID',
-                              style: GoogleFonts.inter(
-                                  color: AppTheme.primary, fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
 
                   const SizedBox(height: 32),
                   Center(

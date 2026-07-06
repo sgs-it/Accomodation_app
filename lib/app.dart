@@ -20,6 +20,8 @@ import 'screens/users/users_screen.dart';
 import 'screens/requests/pending_requests_screen.dart';
 import 'screens/shell/main_shell.dart';
 import 'screens/beds/beds_filter_screen.dart';
+import 'screens/staff/unassigned_staff_screen.dart';
+import 'screens/staff/on_leave_staff_screen.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
@@ -71,6 +73,12 @@ final _router = GoRouter(
         GoRoute(
             path: '/shifts',
             builder: (ctx, state) => const ShiftHistoryScreen()),
+        GoRoute(
+            path: '/unassigned',
+            builder: (ctx, state) => const UnassignedStaffScreen()),
+        GoRoute(
+            path: '/on-leave',
+            builder: (ctx, state) => const OnLeaveStaffScreen()),
         GoRoute(
             path: '/users',
             builder: (ctx, state) => const UsersScreen()),

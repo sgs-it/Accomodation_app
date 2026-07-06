@@ -136,8 +136,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               crossAxisCount: 2,
                               crossAxisSpacing: 16,
                               mainAxisSpacing: 16,
-                              childAspectRatio: 1.25, // Make cards shorter to remove blank space
-                              padding: EdgeInsets.zero, // Remove any default/inherited padding
+                              childAspectRatio: 0.95, // Lower ratio gives more height
+                              padding: EdgeInsets.zero,
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
                               children: [
@@ -171,7 +171,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   color: AppTheme.vacation,
                                   icon: Icons.flight_takeoff_rounded,
                                   sparklineData: const [20, 25, 15, 30, 20, 35, 25, 40, 30],
-                                  onTap: () => context.go('/beds-overview/leave'),
+                                  onTap: () => context.push('/on-leave'),
                                 ),
                               ],
                             ),

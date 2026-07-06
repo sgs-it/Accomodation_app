@@ -60,9 +60,11 @@ class StatCard extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   // Icon
                   Container(
                     padding: const EdgeInsets.all(8),
@@ -120,12 +122,13 @@ class StatCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                  const Spacer(),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
-            // Sparkline Chart at bottom
-            if (sparklineData.isNotEmpty)
+          ),
+          // Sparkline Chart at bottom
+          if (sparklineData.isNotEmpty)
               Positioned(
                 bottom: 0,
                 left: 0,

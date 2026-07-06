@@ -7,9 +7,17 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
 import '../../providers/app_provider.dart';
 
-class MainShell extends StatelessWidget {
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class MainShell extends StatefulWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
 
   static int _locationIndex(String location, bool isAdmin) {
     if (location.startsWith('/dashboard')) return 0;
@@ -18,6 +26,79 @@ class MainShell extends StatelessWidget {
     if (location.startsWith('/shifts'))    return 3;
     if (location.startsWith('/requests'))  return isAdmin ? 4 : -1;
     return 0;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.read<AppProvider>().isAdmin) {
+        _checkReturns();
+      }
+    });
+  }
+
+  Future<void> _checkReturns() async {
+    final client = Supabase.instance.client;
+    try {
+      // Find unassigned staff
+      final staffData = await client
+          .from('staff')
+          .select('id, name, bed_assignments(id), pending_changes(id, change_type, status, payload, created_at)')
+          .eq('status', 'On Leave')
+          .order('created_at', ascending: false);
+
+      for (final staff in staffData) {
+        final assignments = staff['bed_assignments'] as List?;
+        if (assignments == null || assignments.isEmpty) {
+          final changes = staff['pending_changes'] as List?;
+          if (changes != null) {
+            final annualLeaves = changes
+                .where((c) =>
+                    c['change_type'] == 'leave_request' &&
+                    c['status'] == 'approved' &&
+                    c['payload']['leave_type'] == 'Annual leave')
+                .toList();
+
+            if (annualLeaves.isNotEmpty) {
+              annualLeaves.sort((a, b) {
+                final dateA = DateTime.parse(a['created_at']);
+                final dateB = DateTime.parse(b['created_at']);
+                return dateB.compareTo(dateA); // desc
+              });
+              
+              final latest = annualLeaves.first;
+              final returnDateStr = latest['payload']['to_date'] as String?;
+              final returnNotified = latest['payload']['return_notified'] == true;
+
+              if (returnDateStr != null && !returnNotified) {
+                final returnDate = DateTime.tryParse(returnDateStr);
+                if (returnDate != null) {
+                  final diff = returnDate.difference(DateTime.now()).inDays;
+                  if (diff <= 10 && diff >= 0) {
+                    // Trigger notification
+                    await client.functions.invoke(
+                      'notify_admins',
+                      body: {
+                        'title': 'Staff Returning Soon',
+                        'body': 'Reminder: Staff <b>${staff['name']}</b> is returning from Annual Leave in $diff days. Please assign them a new bed.'
+                      },
+                    );
+
+                    // Mark as notified
+                    final newPayload = Map<String, dynamic>.from(latest['payload']);
+                    newPayload['return_notified'] = true;
+                    await client.from('pending_changes').update({'payload': newPayload}).eq('id', latest['id']);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in 10-day return check: $e');
+    }
   }
 
   @override
@@ -37,7 +118,7 @@ class MainShell extends StatelessWidget {
     return Scaffold(
       extendBody: true, // Allows body to scroll behind the floating nav
       backgroundColor: Colors.transparent, // Background handled by child
-      body: child,
+      body: widget.child,
       bottomNavigationBar: showNav
           ? SafeArea(
               child: Container(
@@ -119,7 +200,7 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: isSelected
             ? BoxDecoration(
                 color: const Color(0xFF8B5CF6), // Purple accent
@@ -135,7 +216,7 @@ class _NavItem extends StatelessWidget {
                 Icon(
                   icon,
                   color: isSelected ? Colors.white : const Color(0xFF64748B),
-                  size: 24,
+                  size: 22,
                 ),
                 if (badgeCount > 0)
                   Positioned(
@@ -166,9 +247,11 @@ class _NavItem extends StatelessWidget {
               label,
               style: GoogleFonts.inter(
                 color: isSelected ? Colors.white : const Color(0xFF64748B),
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
+              softWrap: false,
+              overflow: TextOverflow.visible,
             ),
           ],
         ),
