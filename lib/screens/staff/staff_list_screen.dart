@@ -228,7 +228,7 @@ class _StaffListScreenState extends State<StaffListScreen>
                         // Summary stats grid
                         LayoutBuilder(
                           builder: (context, constraints) {
-                            double aspectRatio = constraints.maxWidth > 800 ? 1.6 : (constraints.maxWidth > 500 ? 1.2 : 0.72);
+                            double aspectRatio = constraints.maxWidth > 800 ? 2.6 : (constraints.maxWidth > 500 ? 1.6 : 0.72);
                             return GridView.count(
                               crossAxisCount: 3,
                               crossAxisSpacing: 12,

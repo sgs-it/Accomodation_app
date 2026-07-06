@@ -135,7 +135,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             LayoutBuilder(
                               builder: (context, constraints) {
                                 int columns = constraints.maxWidth > 800 ? 4 : (constraints.maxWidth > 500 ? 3 : 2);
-                                double aspectRatio = constraints.maxWidth > 800 ? 1.4 : (constraints.maxWidth > 500 ? 1.2 : 0.95);
+                                double aspectRatio = constraints.maxWidth > 800 ? 2.2 : (constraints.maxWidth > 500 ? 1.4 : 0.95);
                                 return GridView.count(
                                   crossAxisCount: columns,
                                   crossAxisSpacing: 16,
