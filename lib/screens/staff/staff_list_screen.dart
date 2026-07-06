@@ -333,7 +333,7 @@ class _StaffListScreenState extends State<StaffListScreen>
                             : _staff.isEmpty
                                 ? _EmptyStaff(onAdd: () => _showAddStaffDialog(context, provider))
                                 : ListView.builder(
-                                    padding: EdgeInsets.zero,
+                                    padding: const EdgeInsets.only(bottom: 120),
                                     shrinkWrap: true,
                                     physics: const NeverScrollableScrollPhysics(),
                                     itemCount: _staff.length,
