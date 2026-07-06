@@ -54,11 +54,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           width: double.infinity,
                           decoration: const BoxDecoration(
                             gradient: AppTheme.dashboardHeaderGradient,
-                            image: DecorationImage(
-                              image: AssetImage('assets/images/city_bg.png'), // fallback to empty if missing
-                              fit: BoxFit.cover,
-                              opacity: 0.1,
-                            ),
                           ),
                         ),
                       ),
@@ -452,14 +447,9 @@ class _LocationCard extends StatelessWidget {
                 Container(
                   width: 48,
                   height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2C3552),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF2C3552),
                     shape: BoxShape.circle,
-                    image: const DecorationImage(
-                      image: AssetImage('assets/images/building.png'), // Will fallback if not present
-                      fit: BoxFit.cover,
-                      colorFilter: ColorFilter.mode(Colors.black38, BlendMode.darken),
-                    ),
                   ),
                   child: const Icon(Icons.business, color: Colors.white54),
                 ),
