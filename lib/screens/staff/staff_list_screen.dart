@@ -71,6 +71,15 @@ class _StaffListScreenState extends State<StaffListScreen>
         }
       } catch (e) {
         debugPrint('Error fetching admins: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to load admins: $e'),
+              backgroundColor: AppTheme.danger,
+              duration: const Duration(seconds: 10),
+            ),
+          );
+        }
       }
       try {
         // Unassigned = On Leave staff with no bed assignment
