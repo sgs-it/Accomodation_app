@@ -148,7 +148,7 @@ class ExportService {
           TextCellValue(bed['bed_code']?.toString() ?? ''),
           TextCellValue(occupantName),
           TextCellValue(occupantId),
-          TextCellValue('${room['room_code']}-BD${bed['bed_number']}-${bed['position']}'),
+          TextCellValue('${room['room_code']}-${bed['bed_number']}'),
           TextCellValue(bed['status']?.toString() ?? 'VACANT'),
         ]);
       }
