@@ -226,14 +226,17 @@ class _StaffListScreenState extends State<StaffListScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Summary stats grid
-                        GridView.count(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.72,
-                          padding: EdgeInsets.zero,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            double aspectRatio = constraints.maxWidth > 800 ? 1.6 : (constraints.maxWidth > 500 ? 1.2 : 0.72);
+                            return GridView.count(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: aspectRatio,
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
                           children: [
                             StatCard(
                               label: 'Total\nStaff',
@@ -264,6 +267,8 @@ class _StaffListScreenState extends State<StaffListScreen>
                               onTap: () => context.push('/unassigned'),
                             ),
                           ],
+                            );
+                          }
                         ),
                         const SizedBox(height: 24),
                         // Search Bar
