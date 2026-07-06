@@ -8,6 +8,7 @@ class RoomModel {
   final int capacity;
   final DateTime? contractExpiry;
   final String? notes;
+  final String? contractNumber;
   final DateTime? createdAt;
 
   // Filled by service
@@ -22,6 +23,7 @@ class RoomModel {
     required this.capacity,
     this.contractExpiry,
     this.notes,
+    this.contractNumber,
     this.createdAt,
     this.occupiedCount = 0,
     this.actualBedsCount = 0,
@@ -42,6 +44,7 @@ class RoomModel {
           ? DateTime.parse(json['contract_expiry'] as String)
           : null,
       notes: json['notes'] as String?,
+      contractNumber: json['contract_number'] as String?,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,
@@ -55,9 +58,10 @@ class RoomModel {
         'capacity': capacity,
         'contract_expiry': contractExpiry?.toIso8601String().split('T').first,
         'notes': notes,
+        'contract_number': contractNumber,
       };
 
-  RoomModel copyWith({int? occupiedCount, int? actualBedsCount}) {
+  RoomModel copyWith({int? occupiedCount, int? actualBedsCount, String? contractNumber}) {
     return RoomModel(
       id: id,
       roomCode: roomCode,
@@ -66,6 +70,7 @@ class RoomModel {
       capacity: capacity,
       contractExpiry: contractExpiry,
       notes: notes,
+      contractNumber: contractNumber ?? this.contractNumber,
       createdAt: createdAt,
       occupiedCount: occupiedCount ?? this.occupiedCount,
       actualBedsCount: actualBedsCount ?? this.actualBedsCount,

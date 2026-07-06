@@ -373,6 +373,12 @@ class _RoomCard extends StatelessWidget {
                         Text('Capacity: ${room.effectiveCapacity}',
                             style: GoogleFonts.inter(
                                 color: AppTheme.textMuted, fontSize: 12)),
+                        if (room.contractNumber != null && room.contractNumber!.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text('Contract No: ${room.contractNumber}',
+                              style: GoogleFonts.inter(
+                                  color: AppTheme.primary, fontSize: 11, fontWeight: FontWeight.w600)),
+                        ],
                       ],
                     ),
                   ],
