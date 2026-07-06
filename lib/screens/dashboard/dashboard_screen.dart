@@ -50,7 +50,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ClipPath(
                         clipper: _HeaderClipper(),
                         child: Container(
-                          height: 280,
+                          height: 180,
                           width: double.infinity,
                           decoration: const BoxDecoration(
                             gradient: AppTheme.dashboardHeaderGradient,
@@ -115,7 +115,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       // Main Content Area overlapping header
                       Container(
-                        margin: const EdgeInsets.only(top: 200),
+                        margin: const EdgeInsets.only(top: 140),
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
