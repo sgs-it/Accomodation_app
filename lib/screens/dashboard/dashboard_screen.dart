@@ -132,48 +132,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold)),
                             const SizedBox(height: 16),
-                            GridView.count(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: 0.95, // Lower ratio gives more height
-                              padding: EdgeInsets.zero,
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              children: [
-                                StatCard(
-                                  label: 'Total Beds',
-                                  value: provider.totalBeds,
-                                  color: AppTheme.primary,
-                                  icon: Icons.bed_rounded,
-                                  sparklineData: const [10, 20, 15, 30, 25, 40, 50, 45, 60],
-                                  onTap: () => context.go('/beds-overview/all'),
-                                ),
-                                StatCard(
-                                  label: 'Occupied',
-                                  value: provider.totalOccupied,
-                                  color: AppTheme.danger,
-                                  icon: Icons.person_rounded,
-                                  sparklineData: const [30, 25, 40, 35, 50, 45, 60, 55, 70],
-                                  onTap: () => context.go('/beds-overview/occupied'),
-                                ),
-                                StatCard(
-                                  label: 'Vacant',
-                                  value: provider.totalVacant,
-                                  color: AppTheme.success,
-                                  icon: Icons.check_circle_outline,
-                                  sparklineData: const [50, 45, 60, 55, 70, 65, 80, 75, 90],
-                                  onTap: () => context.go('/beds-overview/vacant'),
-                                ),
-                                StatCard(
-                                  label: 'On Leave',
-                                  value: provider.totalOnLeave,
-                                  color: AppTheme.vacation,
-                                  icon: Icons.flight_takeoff_rounded,
-                                  sparklineData: const [20, 25, 15, 30, 20, 35, 25, 40, 30],
-                                  onTap: () => context.push('/on-leave'),
-                                ),
-                              ],
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                int columns = constraints.maxWidth > 800 ? 4 : (constraints.maxWidth > 500 ? 3 : 2);
+                                double aspectRatio = constraints.maxWidth > 800 ? 1.4 : (constraints.maxWidth > 500 ? 1.2 : 0.95);
+                                return GridView.count(
+                                  crossAxisCount: columns,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                  childAspectRatio: aspectRatio,
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  children: [
+                                    StatCard(
+                                      label: 'Total Beds',
+                                      value: provider.totalBeds,
+                                      color: AppTheme.primary,
+                                      icon: Icons.bed_rounded,
+                                      sparklineData: const [10, 20, 15, 30, 25, 40, 50, 45, 60],
+                                      onTap: () => context.go('/beds-overview/all'),
+                                    ),
+                                    StatCard(
+                                      label: 'Occupied',
+                                      value: provider.totalOccupied,
+                                      color: AppTheme.danger,
+                                      icon: Icons.person_rounded,
+                                      sparklineData: const [30, 25, 40, 35, 50, 45, 60, 55, 70],
+                                      onTap: () => context.go('/beds-overview/occupied'),
+                                    ),
+                                    StatCard(
+                                      label: 'Vacant',
+                                      value: provider.totalVacant,
+                                      color: AppTheme.success,
+                                      icon: Icons.check_circle_outline,
+                                      sparklineData: const [50, 45, 60, 55, 70, 65, 80, 75, 90],
+                                      onTap: () => context.go('/beds-overview/vacant'),
+                                    ),
+                                    StatCard(
+                                      label: 'On Leave',
+                                      value: provider.totalOnLeave,
+                                      color: AppTheme.vacation,
+                                      icon: Icons.flight_takeoff_rounded,
+                                      sparklineData: const [20, 25, 15, 30, 20, 35, 25, 40, 30],
+                                      onTap: () => context.push('/on-leave'),
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                             // Locations list
                             Row(
