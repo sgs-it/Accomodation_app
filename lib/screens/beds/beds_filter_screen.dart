@@ -140,7 +140,6 @@ class _BedsFilterScreenState extends State<BedsFilterScreen> {
             ),
           ),
           
-          // Search bar (overlapping the header)
           Transform.translate(
             offset: const Offset(0, -30),
             child: Padding(
@@ -151,22 +150,22 @@ class _BedsFilterScreenState extends State<BedsFilterScreen> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 12,
                       offset: const Offset(0, 4),
                     )
                   ],
                 ),
                 child: TextField(
                   controller: _searchCtrl,
-                  style: const TextStyle(color: Colors.black87),
+                  style: const TextStyle(color: Color(0xFF1E293B), fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Search by bed, room, staff name or ID...',
-                    hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
-                    prefixIcon: const Icon(Icons.search, color: Colors.black38),
+                    hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                    prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8)),
                     suffixIcon: _searchCtrl.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear, color: Colors.black38),
+                            icon: const Icon(Icons.clear, color: Color(0xFF94A3B8)),
                             onPressed: () => _searchCtrl.clear(),
                           )
                         : null,
@@ -320,7 +319,7 @@ class _BedListTile extends StatelessWidget {
                           Text(
                             bed.bedCode,
                             style: GoogleFonts.inter(
-                              color: AppTheme.textPrimary,
+                              color: const Color(0xFF1E293B),
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                             ),
@@ -329,7 +328,7 @@ class _BedListTile extends StatelessWidget {
                           Text(
                             '${bed.locationName ?? "Unknown Location"} • Room ${bed.roomCode ?? "Unknown"}',
                             style: GoogleFonts.inter(
-                              color: AppTheme.textSecondary,
+                              color: const Color(0xFF64748B),
                               fontSize: 12,
                             ),
                           ),
@@ -374,7 +373,7 @@ class _BedListTile extends StatelessWidget {
                       child: RichText(
                         text: TextSpan(
                           style: GoogleFonts.inter(
-                            color: AppTheme.textPrimary,
+                            color: const Color(0xFF1E293B),
                             fontSize: 13,
                           ),
                           children: [
