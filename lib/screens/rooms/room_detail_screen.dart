@@ -141,40 +141,35 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Summary stats grid
+                        // Summary stats row
                         if (!_loading)
-                          GridView.count(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: 0.72,
-                            padding: EdgeInsets.zero,
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
+                          Row(
                             children: [
-                              StatCard(
-                                label: 'Total\nBeds',
-                                value: _beds.length,
-                                icon: Icons.bed,
-                                color: AppTheme.primary,
-                                trendText: '',
-                                trendUp: true,
+                              Expanded(
+                                child: _RoomStatChip(
+                                  label: 'Total Beds',
+                                  value: _beds.length,
+                                  icon: Icons.bed,
+                                  color: AppTheme.primary,
+                                ),
                               ),
-                              StatCard(
-                                label: 'Vacant\nBeds',
-                                value: _beds.where((b) => b.isVacant).length,
-                                icon: Icons.single_bed,
-                                color: AppTheme.success,
-                                trendText: '',
-                                trendUp: true,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _RoomStatChip(
+                                  label: 'Vacant Beds',
+                                  value: _beds.where((b) => b.isVacant).length,
+                                  icon: Icons.single_bed,
+                                  color: AppTheme.success,
+                                ),
                               ),
-                              StatCard(
-                                label: 'Occupied\nBeds',
-                                value: _beds.where((b) => b.isOccupied).length,
-                                icon: Icons.person,
-                                color: AppTheme.warning,
-                                trendText: '',
-                                trendUp: false,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _RoomStatChip(
+                                  label: 'Occupied Beds',
+                                  value: _beds.where((b) => b.isOccupied).length,
+                                  icon: Icons.person,
+                                  color: AppTheme.warning,
+                                ),
                               ),
                             ],
                           ),
@@ -911,4 +906,67 @@ class _HeaderClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+class _RoomStatChip extends StatelessWidget {
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color color;
+
+  const _RoomStatChip({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            child: Icon(icon, color: Colors.white, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value.toString(),
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1E293B),
+                ),
+              ),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
