@@ -147,33 +147,37 @@ class _RoomsListScreenState extends State<RoomsListScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Summary stats grid
-                        GridView.count(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 1.25,
-                          padding: EdgeInsets.zero,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          children: [
-                            StatCard(
-                              label: 'Total Rooms',
-                              value: _rooms.length,
-                              icon: Icons.meeting_room,
-                              color: AppTheme.primary,
-                              trendText: '',
-                              trendUp: true,
-                            ),
-                            StatCard(
-                              label: 'Available Beds',
-                              value: availableBeds,
-                              icon: Icons.single_bed,
-                              color: AppTheme.success,
-                              trendText: '',
-                              trendUp: true,
-                            ),
-                          ],
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            double aspectRatio = constraints.maxWidth > 800 ? 3.0 : (constraints.maxWidth > 500 ? 2.0 : 1.25);
+                            return GridView.count(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: aspectRatio,
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              children: [
+                                StatCard(
+                                  label: 'Total Rooms',
+                                  value: _rooms.length,
+                                  icon: Icons.meeting_room,
+                                  color: AppTheme.primary,
+                                  trendText: '',
+                                  trendUp: true,
+                                ),
+                                StatCard(
+                                  label: 'Available Beds',
+                                  value: availableBeds,
+                                  icon: Icons.single_bed,
+                                  color: AppTheme.success,
+                                  trendText: '',
+                                  trendUp: true,
+                                ),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 24),
                         // Rooms List
