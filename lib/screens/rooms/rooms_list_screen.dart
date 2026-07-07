@@ -147,37 +147,26 @@ class _RoomsListScreenState extends State<RoomsListScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            double aspectRatio = constraints.maxWidth > 1000 ? 5.0 : (constraints.maxWidth > 800 ? 4.0 : (constraints.maxWidth > 500 ? 2.5 : 1.25));
-                            return GridView.count(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: aspectRatio,
-                              padding: EdgeInsets.zero,
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              children: [
-                                StatCard(
-                                  label: 'Total Rooms',
-                                  value: _rooms.length,
-                                  icon: Icons.meeting_room,
-                                  color: AppTheme.primary,
-                                  trendText: '',
-                                  trendUp: true,
-                                ),
-                                StatCard(
-                                  label: 'Available Beds',
-                                  value: availableBeds,
-                                  icon: Icons.single_bed,
-                                  color: AppTheme.success,
-                                  trendText: '',
-                                  trendUp: true,
-                                ),
-                              ],
-                            );
-                          },
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _StatChip(
+                                label: 'Total Rooms',
+                                value: _rooms.length,
+                                icon: Icons.meeting_room,
+                                color: AppTheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _StatChip(
+                                label: 'Available Beds',
+                                value: availableBeds,
+                                icon: Icons.single_bed,
+                                color: AppTheme.success,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 24),
                         // Rooms List
@@ -511,4 +500,67 @@ class _HeaderClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+class _StatChip extends StatelessWidget {
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color color;
+
+  const _StatChip({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value.toString(),
+                style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1E293B),
+                ),
+              ),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
