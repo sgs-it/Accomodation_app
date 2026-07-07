@@ -149,7 +149,7 @@ class _RoomsListScreenState extends State<RoomsListScreen> {
                       children: [
                         LayoutBuilder(
                           builder: (context, constraints) {
-                            double aspectRatio = constraints.maxWidth > 800 ? 3.0 : (constraints.maxWidth > 500 ? 2.0 : 1.25);
+                            double aspectRatio = constraints.maxWidth > 1000 ? 5.0 : (constraints.maxWidth > 800 ? 4.0 : (constraints.maxWidth > 500 ? 2.5 : 1.25));
                             return GridView.count(
                               crossAxisCount: 2,
                               crossAxisSpacing: 16,
