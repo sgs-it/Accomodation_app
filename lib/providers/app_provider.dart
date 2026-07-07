@@ -70,11 +70,7 @@ class AppProvider extends ChangeNotifier {
       if (isStaff) {
         _myStaffRecord = await _authService.getMyStaffRecord();
       }
-      await Future.wait([
-        loadLocations(),
-        loadStaff(),
-        loadShifts(),
-      ]);
+      await loadLocations();
       if (isAdmin) await refreshPendingCount();
     } catch (e) {
       _setError(e.toString());
