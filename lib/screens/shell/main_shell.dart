@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
 import '../../providers/app_provider.dart';
+import '../../services/auth_service.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
