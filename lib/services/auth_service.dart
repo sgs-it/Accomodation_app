@@ -33,16 +33,24 @@ class AuthService {
     final user = currentUser;
     if (user == null) return UserRole.unknown;
 
-    final resp = await _client
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
+    // Fetch role with retry to handle Supabase web JWT initialization race condition
+    for (int i = 0; i < 3; i++) {
+      final resp = await _client
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-    if (resp == null) return UserRole.unknown;
-    final role = resp['role'] as String?;
-    if (role == 'admin') return UserRole.admin;
-    if (role == 'staff') return UserRole.staff;
+      if (resp != null) {
+        final role = resp['role'] as String?;
+        if (role == 'admin') return UserRole.admin;
+        if (role == 'staff') return UserRole.staff;
+      }
+      
+      // If null, wait and retry (RLS might have blocked it due to missing JWT header)
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
     return UserRole.unknown;
   }
 
