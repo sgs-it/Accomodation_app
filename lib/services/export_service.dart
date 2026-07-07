@@ -1,11 +1,11 @@
-// lib/services/export_service.dart
-
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:universal_html/html.dart' as html;
 
 class ExportService {
   final _client = Supabase.instance.client;
@@ -162,15 +162,26 @@ class ExportService {
       throw Exception('Failed to generate Excel file.');
     }
 
-    // Save to temp dir and share
-    final tempDir = await getTemporaryDirectory();
     final String timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
-    final String path = '${tempDir.path}/Staff_Accommodation_Plan_$timestamp.xlsx';
-    final File file = File(path);
-    await file.writeAsBytes(bytes);
+    final String fileName = 'Staff_Accommodation_Plan_$timestamp.xlsx';
 
-    // Share the file
-    final xFile = XFile(path, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    await Share.shareXFiles([xFile], text: 'Staff Accommodation Plan Export');
+    if (kIsWeb) {
+      // Web download
+      final blob = html.Blob([bytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', fileName)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } else {
+      // Mobile share
+      final tempDir = await getTemporaryDirectory();
+      final String path = '${tempDir.path}/$fileName';
+      final File file = File(path);
+      await file.writeAsBytes(bytes);
+
+      final xFile = XFile(path, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      await Share.shareXFiles([xFile], text: 'Staff Accommodation Plan Export');
+    }
   }
 }
