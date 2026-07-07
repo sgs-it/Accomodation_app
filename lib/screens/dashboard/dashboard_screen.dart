@@ -37,6 +37,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (provider.loading) {
             return const _DashboardSkeleton();
           }
+          if (provider.error != null) {
+            return Center(child: Text('Error: ${provider.error}', style: const TextStyle(color: Colors.red)));
+          }
           return RefreshIndicator(
             color: AppTheme.primary,
             backgroundColor: Colors.white,

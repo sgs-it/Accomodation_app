@@ -33,7 +33,7 @@ class _MainShellState extends State<MainShell> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<AppProvider>();
-      if (provider.role == UserRole.unknown && provider.authService.isLoggedIn) {
+      if (provider.role == UserRole.unknown) {
         provider.init().then((_) {
           if (provider.isAdmin) _checkReturns();
         });
