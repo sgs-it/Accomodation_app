@@ -109,9 +109,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 20),
-                              // Role badge
-                              _RoleBadge(isAdmin: provider.isAdmin),
                             ],
                           ),
                         ),
@@ -570,38 +567,6 @@ class _MiniStat extends StatelessWidget {
         Text(label,
             style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 10)),
       ],
-    );
-  }
-}
-
-class _RoleBadge extends StatelessWidget {
-  final bool isAdmin;
-  const _RoleBadge({required this.isAdmin});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(isAdmin ? Icons.admin_panel_settings : Icons.visibility,
-              color: Colors.lightBlueAccent, size: 16),
-          const SizedBox(width: 8),
-          Text(
-            isAdmin ? 'Admin — Full Access' : 'Viewer — Can Add Data',
-            style: GoogleFonts.inter(
-              color: Colors.lightBlueAccent,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
