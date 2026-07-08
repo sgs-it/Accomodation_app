@@ -49,3 +49,4 @@ app.*.map.json
 *.keystore
 upload-keystore.jks
 android/key.properties
+logo.png
