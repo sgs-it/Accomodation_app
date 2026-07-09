@@ -325,7 +325,12 @@ class _LeaveRequestSheetState extends State<_LeaveRequestSheet> {
       }
       
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          if (_pastAnnualLeaveDays >= 60 && _leaveType == 'Annual leave') {
+            _leaveType = 'Emergency Leave';
+          }
+          _isLoading = false;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -504,7 +509,18 @@ class _LeaveRequestSheetState extends State<_LeaveRequestSheet> {
                 icon: const Icon(Icons.arrow_drop_down, color: AppTheme.textPrimary),
                 style: GoogleFonts.inter(color: AppTheme.textPrimary, fontSize: 14),
                 items: _leaveTypes.map((type) {
-                  return DropdownMenuItem(value: type, child: Text(type));
+                  final bool isExhausted = type == 'Annual leave' && _pastAnnualLeaveDays >= 60;
+                  return DropdownMenuItem(
+                    value: type, 
+                    enabled: !isExhausted,
+                    child: Text(
+                      isExhausted ? '$type (Limit Reached)' : type,
+                      style: TextStyle(
+                        color: isExhausted ? AppTheme.danger : AppTheme.textPrimary,
+                        decoration: isExhausted ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                  );
                 }).toList(),
                 onChanged: (val) {
                   if (val != null && val != _leaveType) {
@@ -522,6 +538,29 @@ class _LeaveRequestSheetState extends State<_LeaveRequestSheet> {
             ),
           ),
           const SizedBox(height: 16),
+
+          if (_pastAnnualLeaveDays >= 60)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.warning.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.warning.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: AppTheme.warning, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Annual leave limit (60 days/2 years) exhausted. You can only select Emergency or other leaves.',
+                      style: GoogleFonts.inter(color: AppTheme.warning, fontWeight: FontWeight.w500, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           // Date Rows
           Row(
