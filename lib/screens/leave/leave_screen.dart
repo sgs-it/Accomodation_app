@@ -507,7 +507,16 @@ class _LeaveRequestSheetState extends State<_LeaveRequestSheet> {
                   return DropdownMenuItem(value: type, child: Text(type));
                 }).toList(),
                 onChanged: (val) {
-                  if (val != null) setState(() => _leaveType = val);
+                  if (val != null && val != _leaveType) {
+                    setState(() {
+                      _leaveType = val;
+                      // Reset dates when type changes to enforce new constraints
+                      _fromDate = null;
+                      _toDate = null;
+                      _fromCtrl.clear();
+                      _toCtrl.clear();
+                    });
+                  }
                 },
               ),
             ),
@@ -621,11 +630,49 @@ class _LeaveRequestSheetState extends State<_LeaveRequestSheet> {
   Widget _buildDateRow(String label, TextEditingController ctrl, bool isFrom) {
     return GestureDetector(
       onTap: () async {
+        if (!isFrom && _fromDate == null) {
+          _showError('Please select From Date first.');
+          return;
+        }
+
+        DateTime initialD = DateTime.now();
+        DateTime firstD = DateTime.now();
+        DateTime lastD = DateTime.now().add(const Duration(days: 365));
+
+        if (!isFrom) {
+          int maxAllowed = 365;
+          int minAllowed = 1;
+
+          if (_leaveType == 'Emergency Leave') {
+            maxAllowed = 10;
+            minAllowed = 1;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Emergency leave: Select up to 10 days only.'), duration: Duration(seconds: 2)),
+            );
+          } else if (_leaveType == 'Annual leave') {
+            maxAllowed = 60 - _pastAnnualLeaveDays;
+            minAllowed = 7;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Annual leave: Min 7 days, max $maxAllowed days.'), duration: const Duration(seconds: 2)),
+            );
+          }
+          
+          if (maxAllowed < minAllowed) maxAllowed = minAllowed; // fallback
+
+          firstD = _fromDate!.add(Duration(days: minAllowed - 1));
+          lastD = _fromDate!.add(Duration(days: maxAllowed - 1));
+          initialD = firstD.isBefore(DateTime.now()) ? DateTime.now() : firstD;
+          
+          // Fix initialDate if it's out of bounds
+          if (initialD.isAfter(lastD)) initialD = lastD;
+          if (initialD.isBefore(firstD)) initialD = firstD;
+        }
+
         final picked = await showDatePicker(
           context: context,
-          initialDate: DateTime.now(),
-          firstDate: DateTime.now(),
-          lastDate: DateTime.now().add(const Duration(days: 365)),
+          initialDate: initialD,
+          firstDate: firstD,
+          lastDate: lastD,
           builder: (ctx, child) => Theme(
             data: ThemeData.dark().copyWith(
               colorScheme: const ColorScheme.dark(
@@ -639,8 +686,14 @@ class _LeaveRequestSheetState extends State<_LeaveRequestSheet> {
         if (picked != null) {
           ctrl.text = '${picked.day}/${picked.month}/${picked.year}';
           setState(() {
-            if (isFrom) _fromDate = picked;
-            else _toDate = picked;
+            if (isFrom) {
+              _fromDate = picked;
+              // Reset To Date if From Date changes
+              _toDate = null;
+              _toCtrl.clear();
+            } else {
+              _toDate = picked;
+            }
           });
         }
       },
