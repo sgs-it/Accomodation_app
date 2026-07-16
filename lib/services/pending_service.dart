@@ -150,8 +150,36 @@ class PendingService {
           }
         }
       } else if (change.changeType == 'shift_request' && change.targetTable == 'staff') {
-        // A room shift might require manual assignment by admin; no direct staff table update needed
-        // other than marking the request as approved.
+        final newBedId = change.payload['new_bed_id'] as String?;
+        final currentBedId = change.payload['current_bed_id'] as String?;
+        final staffId = change.targetId!;
+        final adminId = _client.auth.currentUser?.id;
+
+        if (newBedId != null) {
+          // Remove from old bed if they had one
+          if (currentBedId != null) {
+            await _client.from('bed_assignments').delete().eq('bed_id', currentBedId);
+            await _client.from('beds').update({'status': 'VACANT'}).eq('id', currentBedId);
+          }
+          
+          // Assign to new bed
+          await _client.from('bed_assignments').delete().eq('bed_id', newBedId);
+          await _client.from('bed_assignments').insert({
+            'bed_id': newBedId,
+            'staff_id': staffId,
+          });
+          await _client.from('beds').update({'status': 'FULL'}).eq('id', newBedId);
+
+          // Log in shift_history
+          await _client.from('shift_history').insert({
+            'staff_id': staffId,
+            'from_bed_id': currentBedId,
+            'to_bed_id': newBedId,
+            'shift_date': DateTime.now().toIso8601String().split('T').first,
+            'reason': 'Approved shift request: ${change.payload['reason'] ?? ''}',
+            'created_by': adminId,
+          });
+        }
       } else {
         // Clean out metadata keys if any
         updatePayload = Map.from(change.payload)
