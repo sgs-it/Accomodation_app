@@ -1,4 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../core/constants.dart';
 
 
@@ -75,22 +77,27 @@ class AuthService {
   }) async {
     final email = role == 'admin' ? identifier : resolveEmail(identifier);
 
-    final tempClient = SupabaseClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      authOptions: const AuthClientOptions(
-        autoRefreshToken: false,
-        authFlowType: AuthFlowType.implicit,
-      ),
+    // Call Supabase REST API directly to avoid overriding the admin's session in the Flutter SDK
+    final response = await http.post(
+      Uri.parse('$supabaseUrl/auth/v1/signup'),
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'email': email,
+        'password': password,
+        'data': {'display_name': displayName},
+      }),
     );
 
-    final result = await tempClient.auth.signUp(
-      email: email,
-      password: password,
-      data: {'display_name': displayName},
-    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to create account: ${response.body}');
+    }
 
-    final newUserId = result.user?.id;
+    final responseData = jsonDecode(response.body);
+    final newUserId = responseData['id'];
+
     if (newUserId == null) throw Exception('Failed to create account');
 
     // Add a small delay in case there is a trigger creating the public.users row
