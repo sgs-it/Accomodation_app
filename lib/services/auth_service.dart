@@ -143,8 +143,6 @@ class AuthService {
         await _client.from('beds').update({'status': 'FULL'}).eq('id', selectedBedId);
       }
     }
-
-    tempClient.dispose();
   }
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
