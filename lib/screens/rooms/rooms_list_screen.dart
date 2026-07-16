@@ -274,10 +274,17 @@ class _RoomsListScreenState extends State<RoomsListScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                final rn = roomNumCtrl.text.trim();
+                final rnRaw = roomNumCtrl.text.trim();
                 final cap = int.tryParse(capacityCtrl.text.trim()) ?? 0;
-                if (rn.isEmpty || cap <= 0) return;
+                if (rnRaw.isEmpty || cap <= 0) return;
                 Navigator.pop(dCtx);
+                
+                final locIndex = provider.locations.indexWhere((l) => l.id == widget.locationId) + 1;
+                String rn = rnRaw.toUpperCase();
+                if (!rn.startsWith('R')) {
+                  rn = 'R$locIndex$rnRaw';
+                }
+                
                 final roomCode = '${widget.locationId}-$rn';
                 try {
                   await RoomService().create(RoomModel(

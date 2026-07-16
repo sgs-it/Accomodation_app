@@ -32,6 +32,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
   bool _loading = true;
   List<BedModel> _beds = [];
   String? _roomCode;
+  String? _roomNumber;
 
   @override
   void initState() {
@@ -47,6 +48,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
       final rooms = context.read<AppProvider>().rooms;
       final room = rooms.where((r) => r.id == widget.roomId).firstOrNull;
       _roomCode = room?.roomCode;
+      _roomNumber = room?.roomNumber;
     } catch (e) {
       debugPrint('Error loading beds: $e');
     }
@@ -518,7 +520,8 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(dCtx);
-                final bedCode = '${_roomCode ?? widget.roomId}-${bedNumber.toString().padLeft(3, '0')}';
+                final prefix = _roomNumber ?? _roomCode ?? widget.roomId;
+                final bedCode = '$prefix-${bedNumber.toString().padLeft(3, '0')}';
                 try {
                   await _bedService.create(BedModel(
                     id: '',
