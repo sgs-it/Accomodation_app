@@ -93,10 +93,20 @@ class AuthService {
     final newUserId = result.user?.id;
     if (newUserId == null) throw Exception('Failed to create account');
 
-    await _client.from('user_roles').upsert(
-      {'user_id': newUserId, 'role': role},
-      onConflict: 'user_id',
-    );
+    // Add a small delay in case there is a trigger creating the public.users row
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    try {
+      await _client.from('user_roles').upsert(
+        {'user_id': newUserId, 'role': role},
+        onConflict: 'user_id',
+      );
+    } on PostgrestException catch (e) {
+      if (e.code == '23503') {
+        throw Exception('Account with this ID already exists, or the database trigger failed to sync the user.');
+      }
+      rethrow;
+    }
 
     if (role == 'staff') {
       // 1. Create staff profile record directly
