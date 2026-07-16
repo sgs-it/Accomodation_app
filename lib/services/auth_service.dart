@@ -96,9 +96,9 @@ class AuthService {
     }
 
     final responseData = jsonDecode(response.body);
-    final newUserId = responseData['id'];
+    final newUserId = responseData['user']?['id'] ?? responseData['id'];
 
-    if (newUserId == null) throw Exception('Failed to create account');
+    if (newUserId == null) throw Exception('Failed to create account. Response: ${response.body}');
 
     // Add a small delay in case there is a trigger creating the public.users row
     await Future.delayed(const Duration(milliseconds: 500));
