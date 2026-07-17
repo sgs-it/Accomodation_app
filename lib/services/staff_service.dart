@@ -85,7 +85,7 @@ class StaffService {
   }
 
   Future<void> delete(String id) async {
-    // 1. Get the staff to find their auth_user_id and bed assignment
+    // 1. Get the staff to find their auth_user_id
     final staffResp = await _client.from('staff').select('auth_user_id').eq('id', id).maybeSingle();
     
     // 2. Unassign from beds and mark beds as vacant
@@ -93,25 +93,22 @@ class StaffService {
     if ((assignResp as List).isNotEmpty) {
       for (final assignment in assignResp) {
         final bedId = assignment['bed_id'];
-        // Make bed vacant
         await _client.from('beds').update({'status': 'VACANT'}).eq('id', bedId);
       }
-      // Delete all assignments
-      await _client.from('bed_assignments').delete().eq('staff_id', id);
     }
 
-    // 3. Delete any pending requests and shift history
+    // 3. Delete any pending requests (these do not cascade)
     await _client.from('pending_changes').delete().eq('target_id', id);
-    await _client.from('shift_history').delete().eq('staff_id', id);
     
-    // 4. Delete from staff
-    await _client.from('staff').delete().eq('id', id);
-    
-    // 5. Delete from user_roles and auth.users
+    // 4. Delete the user securely
     if (staffResp != null && staffResp['auth_user_id'] != null) {
-       await _client.from('user_roles').delete().eq('user_id', staffResp['auth_user_id']);
-       // Invoke the secure Postgres RPC to delete the authentication credentials
+       // Thanks to ON DELETE CASCADE on staff -> auth.users, deleting the auth user
+       // will automatically cascade and delete the staff row, bed_assignments, shift_history, shift_requests, and user_roles.
        await _client.rpc('delete_user_account', params: {'target_user_id': staffResp['auth_user_id']});
+    } else {
+       // If no auth user exists (e.g. legacy data), just delete the staff row manually.
+       // This will also cascade to bed_assignments, shift_history, shift_requests.
+       await _client.from('staff').delete().eq('id', id);
     }
   }
 
