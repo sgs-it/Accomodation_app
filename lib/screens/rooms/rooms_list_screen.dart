@@ -186,6 +186,7 @@ class _RoomsListScreenState extends State<RoomsListScreen> {
                                     itemBuilder: (ctx, i) => _RoomCard(
                                       room: _rooms[i],
                                       onTap: () => context.go('/rooms/${widget.locationId}/${_rooms[i].id}'),
+                                      onEdit: isAdmin ? () => _showEditRoomDialog(context, _rooms[i], provider) : null,
                                     ),
                                   ),
                       ],
@@ -312,12 +313,110 @@ class _RoomsListScreenState extends State<RoomsListScreen> {
       ),
     );
   }
+
+  void _showEditRoomDialog(BuildContext ctx, RoomModel room, AppProvider provider) {
+    final contractNoCtrl = TextEditingController(text: room.contractNumber ?? '');
+    DateTime? contractExpiry = room.contractExpiry;
+    bool isSaving = false;
+
+    showDialog(
+      context: ctx,
+      builder: (dCtx) => StatefulBuilder(
+        builder: (dCtx, setS) => AlertDialog(
+          backgroundColor: AppTheme.bgCard,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Edit Room Details', style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: contractNoCtrl,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Contract Number (optional)',
+                ),
+              ),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: dCtx,
+                    initialDate: contractExpiry ?? DateTime.now().add(const Duration(days: 365)),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2040),
+                  );
+                  if (picked != null) setS(() => contractExpiry = picked);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.bgCardLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.divider),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined, color: AppTheme.textMuted, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        contractExpiry != null
+                            ? DateFormat('dd MMM yyyy').format(contractExpiry!)
+                            : 'Contract Expiry (optional)',
+                        style: GoogleFonts.inter(
+                            color: contractExpiry != null ? AppTheme.textPrimary : AppTheme.textMuted,
+                            fontSize: 13),
+                      ),
+                      if (contractExpiry != null) ...[
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => setS(() => contractExpiry = null),
+                          child: const Icon(Icons.close, color: AppTheme.textMuted, size: 16),
+                        )
+                      ]
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(dCtx),
+              child: Text('Cancel', style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: isSaving ? null : () async {
+                setS(() => isSaving = true);
+                try {
+                  await RoomService().update(room.id, {
+                    'contract_number': contractNoCtrl.text.trim().isEmpty ? null : contractNoCtrl.text.trim(),
+                    'contract_expiry': contractExpiry?.toIso8601String().split('T').first,
+                  });
+                  if (dCtx.mounted) {
+                    Navigator.pop(dCtx);
+                    _load();
+                  }
+                } catch (e) {
+                  if (dCtx.mounted) {
+                    ScaffoldMessenger.of(dCtx).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
+                  setS(() => isSaving = false);
+                }
+              },
+              child: isSaving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _RoomCard extends StatelessWidget {
   final RoomModel room;
   final VoidCallback onTap;
-  const _RoomCard({required this.room, required this.onTap});
+  final VoidCallback? onEdit;
+  const _RoomCard({required this.room, required this.onTap, this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -383,20 +482,33 @@ class _RoomCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: pct < 1.0 ? AppTheme.success.withValues(alpha: 0.1) : AppTheme.danger.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${room.vacantCount} empty',
-                    style: GoogleFonts.inter(
-                      color: pct < 1.0 ? AppTheme.success : AppTheme.danger,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                Row(
+                  children: [
+                    if (onEdit != null)
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, size: 20),
+                        color: AppTheme.primary,
+                        onPressed: onEdit,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    if (onEdit != null) const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: pct < 1.0 ? AppTheme.success.withValues(alpha: 0.1) : AppTheme.danger.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${room.vacantCount} empty',
+                        style: GoogleFonts.inter(
+                          color: pct < 1.0 ? AppTheme.success : AppTheme.danger,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
