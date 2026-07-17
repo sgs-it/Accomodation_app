@@ -117,19 +117,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               backgroundColor: AppTheme.accent.withValues(alpha: 0.1),
                               child: const Icon(Icons.person_add_alt_1_rounded, color: AppTheme.accent),
                             ),
-                            title: Text('New Staff: $name', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textPrimary)),
+                            title: Text('New Staff: $name', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, color: const Color(0xFF1E293B))),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: 4),
-                                Text('ID: $staffId', style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary)),
+                                Text('ID: $staffId', style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF64748B))),
                                 const SizedBox(height: 2),
                                 Text(assignmentText, style: GoogleFonts.inter(fontSize: 13, color: AppTheme.primary)),
                               ],
                             ),
                             trailing: Text(
                               _formatTimeAgo(createdAt),
-                              style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textSecondary),
+                              style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
                             ),
                             isThreeLine: true,
                           ),
