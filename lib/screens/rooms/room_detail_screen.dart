@@ -551,6 +551,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     final bedCodeCtrl = TextEditingController(text: bed.bedCode);
     final nameCtrl = TextEditingController(text: bed.occupant?.name ?? '');
     final staffIdCtrl = TextEditingController(text: bed.occupant?.staffId ?? '');
+    final passCtrl = TextEditingController();
     bool isSaving = false;
 
     showDialog(
@@ -574,7 +575,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 style: const TextStyle(color: AppTheme.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Occupant Name',
-                  hintText: 'Enter name (creates new staff if vacant)',
+                  hintText: 'Enter name',
                 ),
               ),
               const SizedBox(height: 12),
@@ -586,6 +587,17 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                   hintText: 'Enter ID',
                 ),
               ),
+              if (!bed.isOccupied) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: passCtrl,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(
+                    labelText: 'Password (Required for new staff)',
+                    hintText: 'Min 6 chars',
+                  ),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -598,6 +610,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 final newBedCode = bedCodeCtrl.text.trim();
                 final newName = nameCtrl.text.trim();
                 final newStaffId = staffIdCtrl.text.trim();
+                final pass = passCtrl.text.trim();
 
                 if (newBedCode.isEmpty) {
                   ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Bed ID cannot be empty')));
@@ -626,29 +639,28 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                       await _staffService.update(bed.occupant!.id, updates);
                     }
                   } else {
-                    // Bed is vacant or occupant is missing, but user provided a name -> Create and assign
+                    // Bed is vacant or occupant is missing, but user provided a name -> Create and assign full account
                     if (newName.isNotEmpty) {
-                      final generatedStaffId = newStaffId.isNotEmpty ? newStaffId : 'TEMP-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+                      if (newStaffId.isEmpty) {
+                         if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Please provide a Staff ID')));
+                         setS(() => isSaving = false);
+                         return;
+                      }
+                      if (pass.length < 6) {
+                         if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Password must be at least 6 characters')));
+                         setS(() => isSaving = false);
+                         return;
+                      }
                       
-                      final newStaff = await _staffService.create(StaffModel(
-                        id: '',
-                        staffId: generatedStaffId,
-                        name: newName,
-                        status: 'Active',
-                        createdAt: DateTime.now(),
-                      ));
-                      await _bedService.assignStaff(
-                        bedId: bed.id,
-                        staffId: newStaff.id,
-                        bedStatus: 'FULL',
+                      await AuthService().createAccount(
+                        identifier: newStaffId,
+                        displayName: newName,
+                        password: pass,
+                        role: 'staff',
+                        selectedBedId: bed.id,
                       );
-                      await ShiftService().logShift(
-                        staffId: newStaff.id,
-                        fromBedId: null,
-                        toBedId: bed.id,
-                        shiftDate: DateTime.now(),
-                        reason: 'Initial assignment via edit',
-                      );
+
+                      // Note: createAccount automatically handles bed assignment and status update
                     } else if (newStaffId.isNotEmpty) {
                        if (ctx.mounted) {
                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Please provide a name to create a new staff member')));
