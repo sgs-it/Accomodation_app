@@ -29,7 +29,7 @@ class RoomModel {
     this.actualBedsCount = 0,
   });
 
-  int get effectiveCapacity => capacity > actualBedsCount ? capacity : actualBedsCount;
+  int get effectiveCapacity => actualBedsCount;
   int get vacantCount => effectiveCapacity - occupiedCount;
   double get occupancyRate => effectiveCapacity > 0 ? occupiedCount / effectiveCapacity : 0;
 
