@@ -22,6 +22,7 @@ import 'screens/shell/main_shell.dart';
 import 'screens/beds/beds_filter_screen.dart';
 import 'screens/staff/unassigned_staff_screen.dart';
 import 'screens/staff/on_leave_staff_screen.dart';
+import 'screens/dashboard/notifications_screen.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
@@ -90,6 +91,9 @@ final _router = GoRouter(
             builder: (ctx, state) => BedsFilterScreen(
                   filter: state.pathParameters['filter']!,
                 )),
+        GoRoute(
+            path: '/notifications',
+            builder: (ctx, state) => const NotificationsScreen()),
       ],
     ),
   ],

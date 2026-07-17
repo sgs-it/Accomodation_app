@@ -98,6 +98,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     const SizedBox(width: 10),
                                     _ActionBtn(icon: Icons.person_add_outlined, onTap: () => context.go('/users'), color: AppTheme.accent),
                                     const SizedBox(width: 10),
+                                    _ActionBtn(icon: Icons.notifications_none_rounded, onTap: () => context.push('/notifications'), color: AppTheme.accent),
+                                    const SizedBox(width: 10),
                                   ],
                                   _ActionBtn(
                                     icon: Icons.logout,
