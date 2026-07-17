@@ -58,17 +58,19 @@ class ExportService {
       final managedBy = locInfo['manager_name'] ?? '';
       
       final bedsList = room['beds'] as List<dynamic>? ?? [];
-      final capacity = room['capacity'] as int? ?? 0;
       
-      // Calculate occupied count
+      // Calculate occupied and available counts based purely on actual beds
+      int capacity = bedsList.length;
       int occupied = 0;
+      int available = 0;
       for (var bed in bedsList) {
         final status = bed['status'] as String? ?? 'VACANT';
         if (status == 'FULL' || status == 'VACATION') {
           occupied++;
+        } else if (status == 'VACANT') {
+          available++;
         }
       }
-      final available = capacity - occupied;
 
       final contractExpiry = room['contract_expiry'] as String?;
       
