@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:timeago/timeago.dart' as timeago;
+import 'package:intl/intl.dart';
 
 import '../../core/theme.dart';
 import '../../providers/app_provider.dart';
@@ -45,6 +45,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } finally {
       setState(() => _loading = false);
     }
+  }
+  
+  String _formatTimeAgo(DateTime date) {
+    final diff = DateTime.now().difference(date);
+    if (diff.inDays > 0) return '${diff.inDays}d ago';
+    if (diff.inHours > 0) return '${diff.inHours}h ago';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+    return 'Just now';
   }
 
   @override
@@ -120,7 +128,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               ],
                             ),
                             trailing: Text(
-                              timeago.format(createdAt),
+                              _formatTimeAgo(createdAt),
                               style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textSecondary),
                             ),
                             isThreeLine: true,
