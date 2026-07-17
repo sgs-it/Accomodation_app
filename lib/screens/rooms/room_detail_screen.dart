@@ -552,6 +552,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     final nameCtrl = TextEditingController(text: bed.occupant?.name ?? '');
     final staffIdCtrl = TextEditingController(text: bed.occupant?.staffId ?? '');
     final passCtrl = TextEditingController();
+    String currentPosition = bed.position ?? 'LB';
     bool isSaving = false;
 
     showDialog(
@@ -568,6 +569,21 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 controller: bedCodeCtrl,
                 style: const TextStyle(color: AppTheme.textPrimary),
                 decoration: const InputDecoration(labelText: 'Bed ID (Code)'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: currentPosition,
+                dropdownColor: AppTheme.bgCard,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(labelText: 'Position'),
+                items: kBedPositions
+                    .map((p) => DropdownMenuItem(
+                          value: p,
+                          child: Text(kBedPositionLabels[p] ?? p,
+                              style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+                        ))
+                    .toList(),
+                onChanged: (v) => setS(() => currentPosition = v!),
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -619,9 +635,9 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
 
                 setS(() => isSaving = true);
                 try {
-                  // 1. Update Bed Code if changed
-                  if (newBedCode != bed.bedCode) {
-                    await _bedService.updateBedCode(bed.id, newBedCode);
+                  // 1. Update Bed Code and Position if changed
+                  if (newBedCode != bed.bedCode || currentPosition != bed.position) {
+                    await _bedService.updateBedCodeAndPosition(bed.id, newBedCode, currentPosition);
                   }
 
                   // 2. Handle Staff Updates

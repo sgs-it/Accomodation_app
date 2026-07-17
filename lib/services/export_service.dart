@@ -116,6 +116,7 @@ class ExportService {
         TextCellValue('Occupant Name'),
         TextCellValue('Occupant ID'),
         TextCellValue('Location'),
+        TextCellValue('Position'),
         TextCellValue('Status'),
       ]);
 
@@ -151,6 +152,7 @@ class ExportService {
           TextCellValue(occupantName),
           TextCellValue(occupantId),
           TextCellValue('${room['room_code']}-${bed['bed_number']?.toString().padLeft(3, '0') ?? ''}'),
+          TextCellValue(bed['position']?.toString() ?? 'LB'),
           TextCellValue(bed['status']?.toString() ?? 'VACANT'),
         ]);
       }

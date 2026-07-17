@@ -33,8 +33,8 @@ class BedService {
     await _client.from('beds').update({'status': status}).eq('id', bedId);
   }
 
-  Future<void> updateBedCode(String bedId, String bedCode) async {
-    await _client.from('beds').update({'bed_code': bedCode}).eq('id', bedId);
+  Future<void> updateBedCodeAndPosition(String bedId, String bedCode, String position) async {
+    await _client.from('beds').update({'bed_code': bedCode, 'position': position}).eq('id', bedId);
   }
 
   Future<void> delete(String bedId) async {
