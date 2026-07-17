@@ -88,14 +88,16 @@ class StaffService {
     // 1. Get the staff to find their auth_user_id and bed assignment
     final staffResp = await _client.from('staff').select('auth_user_id').eq('id', id).maybeSingle();
     
-    // 2. Unassign from bed and mark bed as vacant
-    final assignResp = await _client.from('bed_assignments').select('bed_id').eq('staff_id', id).maybeSingle();
-    if (assignResp != null) {
-      final bedId = assignResp['bed_id'];
-      // Delete assignment
+    // 2. Unassign from beds and mark beds as vacant
+    final assignResp = await _client.from('bed_assignments').select('bed_id').eq('staff_id', id);
+    if ((assignResp as List).isNotEmpty) {
+      for (final assignment in assignResp) {
+        final bedId = assignment['bed_id'];
+        // Make bed vacant
+        await _client.from('beds').update({'status': 'VACANT'}).eq('id', bedId);
+      }
+      // Delete all assignments
       await _client.from('bed_assignments').delete().eq('staff_id', id);
-      // Make bed vacant
-      await _client.from('beds').update({'status': 'VACANT'}).eq('id', bedId);
     }
 
     // 3. Delete any pending requests and shift history
@@ -119,13 +121,14 @@ class StaffService {
     final assignResp = await _client
         .from('bed_assignments')
         .select('bed_id')
-        .eq('staff_id', id)
-        .maybeSingle();
-    if (assignResp != null) {
-      await _client
-          .from('beds')
-          .update({'status': 'VACATION'})
-          .eq('id', assignResp['bed_id'] as String);
+        .eq('staff_id', id);
+    if ((assignResp as List).isNotEmpty) {
+      for (final assignment in assignResp) {
+        await _client
+            .from('beds')
+            .update({'status': 'VACATION'})
+            .eq('id', assignment['bed_id'] as String);
+      }
     }
   }
 
@@ -135,13 +138,14 @@ class StaffService {
     final assignResp = await _client
         .from('bed_assignments')
         .select('bed_id')
-        .eq('staff_id', id)
-        .maybeSingle();
-    if (assignResp != null) {
-      await _client
-          .from('beds')
-          .update({'status': 'FULL'})
-          .eq('id', assignResp['bed_id'] as String);
+        .eq('staff_id', id);
+    if ((assignResp as List).isNotEmpty) {
+      for (final assignment in assignResp) {
+        await _client
+            .from('beds')
+            .update({'status': 'FULL'})
+            .eq('id', assignment['bed_id'] as String);
+      }
     }
   }
 }

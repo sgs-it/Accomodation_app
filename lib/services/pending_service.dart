@@ -138,15 +138,19 @@ class PendingService {
         final assignResp = await _client
             .from('bed_assignments')
             .select('bed_id')
-            .eq('staff_id', change.targetId!)
-            .maybeSingle();
-        if (assignResp != null) {
-          final bedId = assignResp['bed_id'] as String;
+            .eq('staff_id', change.targetId!);
+        
+        if ((assignResp as List).isNotEmpty) {
+          for (final assignment in assignResp) {
+            final bedId = assignment['bed_id'] as String;
+            if (change.payload['leave_type'] == 'Annual leave') {
+              await _client.from('beds').update({'status': 'VACANT'}).eq('id', bedId);
+            } else {
+              await _client.from('beds').update({'status': 'VACATION'}).eq('id', bedId);
+            }
+          }
           if (change.payload['leave_type'] == 'Annual leave') {
-            await _client.from('beds').update({'status': 'VACANT'}).eq('id', bedId);
             await _client.from('bed_assignments').delete().eq('staff_id', change.targetId!);
-          } else {
-            await _client.from('beds').update({'status': 'VACATION'}).eq('id', bedId);
           }
         }
       } else if (change.changeType == 'shift_request' && change.targetTable == 'staff') {
