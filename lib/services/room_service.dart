@@ -17,7 +17,8 @@ class RoomService {
         .map((e) => RoomModel.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    final stats = await _getAllBedStats();
+    final roomIds = rooms.map((r) => r.id).toList();
+    final stats = await _getAllBedStats(roomIds: roomIds);
 
     final enriched = <RoomModel>[];
     for (final room in rooms) {
@@ -41,7 +42,8 @@ class RoomService {
         .map((e) => RoomModel.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    final stats = await _getAllBedStats();
+    final roomIds = rooms.map((r) => r.id).toList();
+    final stats = await _getAllBedStats(roomIds: roomIds);
     
     final enriched = <RoomModel>[];
     for (final room in rooms) {
@@ -54,10 +56,13 @@ class RoomService {
     return enriched;
   }
 
-  Future<Map<String, Map<String, int>>> _getAllBedStats() async {
-    final resp = await _client
-        .from('beds')
-        .select('room_id, status');
+  Future<Map<String, Map<String, int>>> _getAllBedStats({List<String>? roomIds}) async {
+    var query = _client.from('beds').select('room_id, status');
+    if (roomIds != null && roomIds.isNotEmpty) {
+      query = query.inFilter('room_id', roomIds);
+    }
+        
+    final resp = await query;
         
     final Map<String, Map<String, int>> stats = {};
     for (var b in (resp as List)) {

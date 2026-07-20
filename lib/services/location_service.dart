@@ -16,10 +16,37 @@ class LocationService {
         .map((e) => LocationModel.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    // Enrich with bed stats
+    // Optimize: fetch all beds with their location_id in a single query
+    final bedsResp = await _client
+        .from('beds')
+        .select('status, room_id, rooms!inner(location_id)');
+        
+    final Map<String, Map<String, int>> locStats = {};
+    for (final loc in locations) {
+      locStats[loc.id] = {'total': 0, 'occupied': 0, 'vacant': 0, 'on_leave': 0};
+    }
+    
+    for (var b in (bedsResp as List)) {
+      final locId = b['rooms']?['location_id'] as String?;
+      if (locId == null || !locStats.containsKey(locId)) continue;
+      
+      final status = b['status'] as String? ?? 'VACANT';
+      locStats[locId]!['total'] = locStats[locId]!['total']! + 1;
+      
+      if (status == 'FULL') {
+        locStats[locId]!['occupied'] = locStats[locId]!['occupied']! + 1;
+      } else if (status == 'VACANT') {
+        locStats[locId]!['vacant'] = locStats[locId]!['vacant']! + 1;
+      } else if (status == 'VACATION') {
+        locStats[locId]!['on_leave'] = locStats[locId]!['on_leave']! + 1;
+        // Occupied includes VACATION beds in export and dashboard logic
+        locStats[locId]!['occupied'] = locStats[locId]!['occupied']! + 1;
+      }
+    }
+
     final enriched = <LocationModel>[];
     for (final loc in locations) {
-      final stats = await _getBedStats(loc.id);
+      final stats = locStats[loc.id]!;
       enriched.add(loc.copyWith(
         totalBeds: stats['total'] ?? 0,
         occupiedBeds: stats['occupied'] ?? 0,
@@ -28,32 +55,6 @@ class LocationService {
       ));
     }
     return enriched;
-  }
-
-  Future<Map<String, int>> _getBedStats(String locationId) async {
-    // Get all rooms for this location, then count beds
-    final roomsResp = await _client
-        .from('rooms')
-        .select('id')
-        .eq('location_id', locationId);
-
-    final roomIds = (roomsResp as List).map((r) => (r as Map<String, dynamic>)['id'] as String).toList();
-    if (roomIds.isEmpty) {
-      return {'total': 0, 'occupied': 0, 'vacant': 0, 'on_leave': 0};
-    }
-
-    final bedsResp = await _client
-        .from('beds')
-        .select('status')
-        .inFilter('room_id', roomIds);
-
-    final beds = bedsResp as List;
-    int total = beds.length;
-    int occupied = beds.where((b) => b['status'] == 'FULL').length;
-    int vacant = beds.where((b) => b['status'] == 'VACANT').length;
-    int onLeave = beds.where((b) => b['status'] == 'VACATION').length;
-
-    return {'total': total, 'occupied': occupied, 'vacant': vacant, 'on_leave': onLeave};
   }
 
   Future<LocationModel> create(LocationModel location) async {
