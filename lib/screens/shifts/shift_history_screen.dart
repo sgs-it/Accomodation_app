@@ -505,6 +505,9 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
                     'reason': reasonCtrl.text.trim(),
                     'requested_room': selectedBed!.bedCode,
                     'new_bed_id': selectedBed!.id,
+                    'old_room': staffRecord['bed_assignments'] != null && (staffRecord['bed_assignments'] as List).isNotEmpty
+                        ? ((staffRecord['bed_assignments'] as List).first as Map)['bed']['bed_code']
+                        : null,
                     'current_bed_id': staffRecord['bed_assignments'] != null && (staffRecord['bed_assignments'] as List).isNotEmpty
                         ? ((staffRecord['bed_assignments'] as List).first as Map)['bed']['id']
                         : null,

@@ -76,8 +76,23 @@ class StaffService {
         .insert(staff.toJson())
         .select()
         .single();
-    return StaffModel.fromJson(response);
-
+        
+    final createdStaff = StaffModel.fromJson(response);
+    
+    // Add notification
+    try {
+      await _client.from('app_notifications').insert({
+        'type': 'staff_added',
+        'title': 'New Staff Added: ${createdStaff.name}',
+        'message': 'ID: ${createdStaff.staffId}',
+        'staff_id': createdStaff.id,
+        'staff_name': createdStaff.name,
+      });
+    } catch (e) {
+      print('Failed to insert notification: $e');
+    }
+    
+    return createdStaff;
   }
 
   Future<void> update(String id, Map<String, dynamic> updates) async {
@@ -86,7 +101,22 @@ class StaffService {
 
   Future<void> delete(String id) async {
     // 1. Get the staff to find their auth_user_id
-    final staffResp = await _client.from('staff').select('auth_user_id').eq('id', id).maybeSingle();
+    final staffResp = await _client.from('staff').select('auth_user_id, name, staff_id').eq('id', id).maybeSingle();
+    
+    // Log delete notification
+    if (staffResp != null) {
+      try {
+        await _client.from('app_notifications').insert({
+          'type': 'staff_deleted',
+          'title': 'Staff Deleted: ${staffResp['name']}',
+          'message': 'ID: ${staffResp['staff_id']}',
+          'staff_id': id,
+          'staff_name': staffResp['name'],
+        });
+      } catch (e) {
+        print('Failed to log delete notification: $e');
+      }
+    }
     
     // 2. Unassign from beds and mark beds as vacant
     final assignResp = await _client.from('bed_assignments').select('bed_id').eq('staff_id', id);

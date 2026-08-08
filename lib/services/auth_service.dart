@@ -139,8 +139,21 @@ class AuthService {
           'staff_id': staffUuid,
         });
 
-        // 3. Set bed status to FULL
+      // 3. Set bed status to FULL
         await _client.from('beds').update({'status': 'FULL'}).eq('id', selectedBedId);
+      }
+      
+      // 4. Log creation notification
+      try {
+        await _client.from('app_notifications').insert({
+          'type': 'staff_added',
+          'title': 'New Staff Added: $displayName',
+          'message': 'ID: $identifier',
+          'staff_id': staffUuid,
+          'staff_name': displayName,
+        });
+      } catch (e) {
+        // ignore
       }
     }
   }

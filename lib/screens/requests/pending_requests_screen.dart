@@ -297,7 +297,7 @@ class _RequestCard extends StatelessWidget {
 
                 // Payload details
                 ...change.payload.entries
-                  .where((e) => e.key != 'staff_name' && e.key != 'staff_id' && e.key != 'past_sick_leaves_this_year' && e.key != 'leave_type')
+                  .where((e) => e.key != 'staff_name' && e.key != 'staff_id' && e.key != 'past_sick_leaves_this_year' && e.key != 'leave_type' && !e.key.endsWith('_id'))
                   .map((e) => Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Row(
