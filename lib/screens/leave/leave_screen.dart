@@ -40,6 +40,9 @@ class _LeaveScreenState extends State<LeaveScreen>
   Future<void> _load() async {
     setState(() => _loading = true);
     final provider = context.read<AppProvider>();
+    if (provider.role == UserRole.unknown) {
+      await provider.init();
+    }
     _onLeave = await _staffService.getOnLeave();
     if (provider.isStaff || provider.isSupervisor) {
       _myPending = await provider.pendingService.getMyChanges();

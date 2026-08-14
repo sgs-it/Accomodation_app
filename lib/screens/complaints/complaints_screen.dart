@@ -28,6 +28,11 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final provider = context.read<AppProvider>();
+    
+    if (provider.role == UserRole.unknown) {
+      await provider.init();
+    }
+    
     try {
       if (provider.isAdmin) {
         // Admins see all complaints

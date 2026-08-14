@@ -46,6 +46,9 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
   Future<void> _load() async {
     setState(() => _loading = true);
     final provider = context.read<AppProvider>();
+    if (provider.role == UserRole.unknown) {
+      await provider.init();
+    }
     _shifts = await _shiftService.getAll();
     if (provider.isStaff || provider.isSupervisor) {
       _myPending = await provider.pendingService.getMyChanges();
