@@ -120,12 +120,11 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                                       children: [
                                         Icon(Icons.check_circle_outline,
                                             size: 64,
-                                            color: AppTheme.textMuted
-                                                .withValues(alpha: 0.4)),
+                                            color: Colors.black26),
                                         const SizedBox(height: 16),
                                         Text('No Complaints Found',
                                             style: GoogleFonts.inter(
-                                                color: AppTheme.textPrimary,
+                                                color: Colors.black87,
                                                 fontSize: 18,
                                                 fontWeight: FontWeight.w600)),
                                       ],
@@ -170,7 +169,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                                             Text(
                                               dateFormatted,
                                               style: GoogleFonts.inter(
-                                                  color: AppTheme.textSecondary,
+                                                  color: Colors.black54,
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w500),
                                             ),
@@ -198,7 +197,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                                         Text(
                                           complaint['description'] ?? '',
                                           style: GoogleFonts.inter(
-                                              color: AppTheme.textPrimary,
+                                              color: Colors.black87,
                                               fontSize: 14,
                                               height: 1.5),
                                         ),
