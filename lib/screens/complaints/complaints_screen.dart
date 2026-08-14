@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme.dart';
 import '../../providers/app_provider.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/loading_skeleton.dart';
 
 class ComplaintsScreen extends StatefulWidget {
