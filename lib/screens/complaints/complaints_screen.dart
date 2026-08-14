@@ -36,12 +36,42 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     
     try {
       if (provider.isAdmin) {
-        // Admins see all complaints
-        final res = await _client
+        // Admins see all complaints with extended staff info
+        _complaints = List<Map<String, dynamic>>.from(await _client
             .from('complaints')
-            .select('*, staff:staff_id(name, staff_id)')
-            .order('created_at', ascending: false);
-        _complaints = List<Map<String, dynamic>>.from(res);
+            .select('*, staff:staff_id(name, auth_user_id, bed_assignments(beds(bed_code, rooms(locations(name)))))')
+            .order('created_at', ascending: false));
+
+        // Fetch roles to attach user type
+        final rolesData = await _client.from('user_roles').select('user_id, role');
+        final Map<String, String> roleMap = {
+          for (var r in rolesData) r['user_id'] as String: r['role'] as String
+        };
+
+        // Attach role and bed info
+        for (var c in _complaints) {
+          final staff = c['staff'];
+          if (staff != null) {
+            final authUserId = staff['auth_user_id'];
+            if (authUserId != null) {
+              final rawRole = roleMap[authUserId] ?? 'staff';
+              c['user_type'] = rawRole[0].toUpperCase() + rawRole.substring(1);
+            }
+            
+            String bedInfo = 'No Bed Assigned';
+            final assignments = staff['bed_assignments'] as List?;
+            if (assignments != null && assignments.isNotEmpty) {
+              final bed = assignments.first['beds'];
+              if (bed != null) {
+                final bedCode = bed['bed_code'] ?? '';
+                final room = bed['rooms'];
+                final locName = room?['locations']?['name'] ?? '';
+                bedInfo = '$locName - $bedCode';
+              }
+            }
+            c['bed_info'] = bedInfo;
+          }
+        }
       } else {
         // Staff/Supervisor see their own complaints
         final staffId = provider.myStaffRecord?['id'];
@@ -180,22 +210,35 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                                                   fontWeight: FontWeight.w500),
                                             ),
                                             if (isAdmin && staffName != null)
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                    horizontal: 8, vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: AppTheme.primary
-                                                      .withValues(alpha: 0.1),
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                                child: Text(
-                                                  staffName,
-                                                  style: GoogleFonts.inter(
-                                                      color: AppTheme.primary,
-                                                      fontSize: 11,
-                                                      fontWeight: FontWeight.w600),
-                                                ),
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.end,
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(
+                                                        horizontal: 8, vertical: 4),
+                                                    decoration: BoxDecoration(
+                                                      color: AppTheme.primary
+                                                          .withValues(alpha: 0.1),
+                                                      borderRadius:
+                                                          BorderRadius.circular(6),
+                                                    ),
+                                                    child: Text(
+                                                      staffName,
+                                                      style: GoogleFonts.inter(
+                                                          color: AppTheme.primary,
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.w600),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    '${complaint['user_type'] ?? 'Staff'} • ${complaint['bed_info'] ?? 'No Bed'}',
+                                                    style: GoogleFonts.inter(
+                                                        color: Colors.black54,
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.w500),
+                                                  ),
+                                                ],
                                               ),
                                           ],
                                         ),
