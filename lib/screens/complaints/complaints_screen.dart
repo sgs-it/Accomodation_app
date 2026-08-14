@@ -39,7 +39,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         // Admins see all complaints with extended staff info
         _complaints = List<Map<String, dynamic>>.from(await _client
             .from('complaints')
-            .select('*, staff:staff_id(name, auth_user_id, bed_assignments(beds(bed_code, rooms(locations(name)))))')
+            .select('*, staff(name, auth_user_id, bed_assignments(beds(bed_code, rooms(locations(name)))))')
             .order('created_at', ascending: false));
 
         // Fetch roles to attach user type

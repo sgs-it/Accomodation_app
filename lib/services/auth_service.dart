@@ -31,30 +31,36 @@ class AuthService {
     await _client.auth.signOut();
   }
 
-  Future<UserRole> getCurrentRole() async {
+  Future<Map<String, dynamic>> getCurrentRoleWithLocation() async {
     final user = currentUser;
-    if (user == null) return UserRole.unknown;
+    if (user == null) return {'role': UserRole.unknown, 'location_id': null};
 
-    // Fetch role with retry to handle Supabase web JWT initialization race condition
     for (int i = 0; i < 3; i++) {
       final resp = await _client
           .from('user_roles')
-          .select('role')
+          .select('role, location_id')
           .eq('user_id', user.id)
           .maybeSingle();
 
       if (resp != null) {
-        final role = resp['role'] as String?;
-        if (role == 'admin') return UserRole.admin;
-        if (role == 'supervisor') return UserRole.supervisor;
-        if (role == 'staff') return UserRole.staff;
+        final roleStr = resp['role'] as String?;
+        final locId = resp['location_id'] as String?;
+        UserRole role = UserRole.unknown;
+        if (roleStr == 'admin') role = UserRole.admin;
+        if (roleStr == 'supervisor') role = UserRole.supervisor;
+        if (roleStr == 'staff') role = UserRole.staff;
+        return {'role': role, 'location_id': locId};
       }
       
-      // If null, wait and retry (RLS might have blocked it due to missing JWT header)
       await Future.delayed(const Duration(milliseconds: 500));
     }
 
-    return UserRole.unknown;
+    return {'role': UserRole.unknown, 'location_id': null};
+  }
+
+  Future<UserRole> getCurrentRole() async {
+    final data = await getCurrentRoleWithLocation();
+    return data['role'] as UserRole;
   }
 
   /// Get the linked staff record for the currently logged-in staff user
@@ -75,6 +81,7 @@ class AuthService {
     required String password,
     required String role,
     String? selectedBedId,
+    String? managedLocationId,
   }) async {
     final email = role == 'admin' ? identifier : resolveEmail(identifier);
 
@@ -105,8 +112,13 @@ class AuthService {
     await Future.delayed(const Duration(milliseconds: 500));
 
     try {
+      final roleData = {'user_id': newUserId, 'role': role};
+      if (managedLocationId != null) {
+        roleData['location_id'] = managedLocationId;
+      }
+      
       await _client.from('user_roles').upsert(
-        {'user_id': newUserId, 'role': role},
+        roleData,
         onConflict: 'user_id',
       );
     } on PostgrestException catch (e) {

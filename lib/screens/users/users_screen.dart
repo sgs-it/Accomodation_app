@@ -130,6 +130,7 @@ class _UsersScreenState extends State<UsersScreen> {
         password:    pass,
         role:        _selectedRole,
         selectedBedId: (_selectedRole == 'staff' || _selectedRole == 'supervisor') ? _selectedBed?.id : null,
+        managedLocationId: (_selectedRole == 'supervisor') ? _selectedLocation?.id : null,
       );
       
       final successMsg = '✓ $_selectedRole account created and bed assigned for $name ($id)';

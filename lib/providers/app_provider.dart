@@ -30,6 +30,7 @@ class AppProvider extends ChangeNotifier {
   List<ShiftHistoryModel> _shifts   = [];
   List<PendingChange>    _pending   = [];
   UserRole _role   = UserRole.unknown;
+  String?  _supervisorLocationId;
   bool     _loading = false;
   String?  _error;
   // Current logged-in staff record (for staff role)
@@ -49,6 +50,7 @@ class AppProvider extends ChangeNotifier {
   String?                get error         => _error;
   bool get isAdmin => _role == UserRole.admin;
   bool get isSupervisor => _role == UserRole.supervisor;
+  String? get supervisorLocationId => _supervisorLocationId;
   bool get isStaff => _role == UserRole.staff;
   AuthService    get authService    => _authService;
   PendingService get pendingService => _pendingService;
@@ -61,7 +63,9 @@ class AppProvider extends ChangeNotifier {
   Future<void> init() async {
     _setLoading(true);
     try {
-      _role = await _authService.getCurrentRole();
+      final roleData = await _authService.getCurrentRoleWithLocation();
+      _role = roleData['role'] as UserRole;
+      _supervisorLocationId = roleData['location_id'] as String?;
       
       // Setup push notifications
       if (!kIsWeb) {
@@ -123,6 +127,14 @@ class AppProvider extends ChangeNotifier {
   Future<void> approveChange(PendingChange change, {String? note}) async {
     await _pendingService.approve(change, note: note);
     await Future.wait([loadPendingChanges(), refreshPendingCount(), loadLocations(), loadStaff()]);
+  }
+
+  Future<void> advanceStatus(PendingChange change, String newStatus, {String? note}) async {
+    await _pendingService.advanceStatus(change, newStatus, note: note);
+    await Future.wait([loadPendingChanges(), refreshPendingCount()]);
+    if (newStatus == 'approved') {
+      await Future.wait([loadLocations(), loadStaff()]);
+    }
   }
 
   Future<void> rejectChange(PendingChange change, {required String reason}) async {

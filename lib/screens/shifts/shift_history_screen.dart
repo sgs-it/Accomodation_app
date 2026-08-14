@@ -509,6 +509,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
                     'reason': reasonCtrl.text.trim(),
                     'requested_room': selectedBed!.bedCode,
                     'new_bed_id': selectedBed!.id,
+                    'target_location_id': selectedBed!.locationId,
                     'old_room': staffRecord['bed_assignments'] != null && (staffRecord['bed_assignments'] as List).isNotEmpty
                         ? ((staffRecord['bed_assignments'] as List).first as Map)['bed']['bed_code']
                         : null,
@@ -524,6 +525,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
                       targetTable: 'staff',
                       targetId: staffRecord['id'] as String?,
                       payload: payload,
+                      initialStatus: 'pending_supervisor',
                     );
                     await provider.loadPendingChanges();
                     _load();

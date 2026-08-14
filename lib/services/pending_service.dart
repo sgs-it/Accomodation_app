@@ -11,8 +11,9 @@ class PendingChange {
   final String? targetTable;
   final String? targetId;
   final Map<String, dynamic> payload;
-  final String status; // pending | approved | rejected
+  final String status; // pending_supervisor | pending | pending_arrival | approved | rejected
   final String? adminNote;
+  final List<Map<String, dynamic>> comments;
   final DateTime createdAt;
 
   PendingChange({
@@ -25,6 +26,7 @@ class PendingChange {
     required this.payload,
     required this.status,
     this.adminNote,
+    this.comments = const [],
     required this.createdAt,
   });
 
@@ -38,6 +40,7 @@ class PendingChange {
         payload: Map<String, dynamic>.from(j['payload'] as Map? ?? {}),
         status: j['status'] as String,
         adminNote: j['admin_note'] as String?,
+        comments: List<Map<String, dynamic>>.from(j['payload']?['comments'] ?? []),
         createdAt: DateTime.parse(j['created_at'] as String),
       );
 }
@@ -52,6 +55,7 @@ class PendingService {
     String? targetTable,
     String? targetId,
     required Map<String, dynamic> payload,
+    String initialStatus = 'pending',
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
@@ -63,7 +67,7 @@ class PendingService {
       'target_table': targetTable,
       'target_id': targetId,
       'payload': payload,
-      'status': 'pending',
+      'status': initialStatus,
     });
 
     try {
@@ -111,7 +115,7 @@ class PendingService {
     final data = await _client
         .from('pending_changes')
         .select()
-        .eq('status', 'pending');
+        .inFilter('status', ['pending', 'pending_supervisor', 'pending_arrival']);
     return data.length;
   }
 
@@ -201,7 +205,26 @@ class PendingService {
     await _client.from('pending_changes').update({
       'status': 'approved',
       'admin_note': note,
+      'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', change.id);
+  }
+
+  Future<void> advanceStatus(PendingChange change, String newStatus, {String? note}) async {
+    final updateData = <String, dynamic>{
+      'status': newStatus,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    if (note != null && note.isNotEmpty) {
+      updateData['admin_note'] = note;
+    }
+    
+    // If we're marking it arrived, we must execute the bed swap here!
+    if (newStatus == 'approved' && change.changeType == 'shift_request') {
+      await approve(change, note: note); // Handled by standard approve
+      return;
+    }
+    
+    await _client.from('pending_changes').update(updateData).eq('id', change.id);
   }
 
   /// Admin rejects a change
@@ -209,6 +232,28 @@ class PendingService {
     await _client.from('pending_changes').update({
       'status': 'rejected',
       'admin_note': reason,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', change.id);
+  }
+
+  Future<void> deleteRequest(String id) async {
+    await _client.from('pending_changes').delete().eq('id', id);
+  }
+  
+  Future<void> addComment(PendingChange change, String authorName, String text) async {
+    final comments = List<Map<String, dynamic>>.from(change.comments);
+    comments.add({
+      'author': authorName,
+      'text': text,
+      'date': DateTime.now().toIso8601String(),
+    });
+    
+    final payload = Map<String, dynamic>.from(change.payload);
+    payload['comments'] = comments;
+    
+    await _client.from('pending_changes').update({
+      'payload': payload,
+      'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', change.id);
   }
 }

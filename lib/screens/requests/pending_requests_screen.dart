@@ -153,7 +153,12 @@ class _RequestsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final all = context.watch<AppProvider>().pendingChanges;
-    final list = all.where((c) => c.status == status).toList();
+    final list = all.where((c) {
+      if (status == 'pending') {
+        return c.status == 'pending' || c.status == 'pending_supervisor' || c.status == 'pending_arrival';
+      }
+      return c.status == status;
+    }).toList();
 
     if (list.isEmpty) {
       return Center(
@@ -264,12 +269,45 @@ class _RequestCard extends StatelessWidget {
                     color: _statusColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(change.status.toUpperCase(),
+                  child: Text(change.status.replaceAll('_', ' ').toUpperCase(),
                       style: GoogleFonts.inter(
                           color: _statusColor,
                           fontSize: 10,
                           fontWeight: FontWeight.bold)),
                 ),
+                if ((change.status == 'approved' || change.status == 'rejected') && provider.isAdmin)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: InkWell(
+                      onTap: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            backgroundColor: Colors.white,
+                            title: const Text('Delete Request'),
+                            content: const Text('Are you sure you want to permanently delete this request?'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          try {
+                            await provider.pendingService.deleteRequest(change.id);
+                            await provider.loadPendingChanges();
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                          }
+                        }
+                      },
+                      child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -379,6 +417,52 @@ class _RequestCard extends StatelessWidget {
                   ),
                 ],
 
+                const SizedBox(height: 12),
+                if (provider.isAdmin || provider.isSupervisor) ...[
+                  // Comments list
+                  if (change.comments.isNotEmpty) ...[
+                    Text('Comments:', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.textPrimary)),
+                    const SizedBox(height: 6),
+                    ...change.comments.map((c) => Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.bgDark,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(c['author'] ?? 'Unknown', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 11, color: AppTheme.textPrimary)),
+                              Text(_formatDate(DateTime.tryParse(c['date'] ?? '') ?? DateTime.now()), style: GoogleFonts.inter(fontSize: 10, color: AppTheme.textMuted)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(c['text'] ?? '', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textSecondary)),
+                        ],
+                      ),
+                    )),
+                    const SizedBox(height: 8),
+                  ],
+                  // Add comment button
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => _showCommentDialog(context, provider),
+                      icon: const Icon(Icons.add_comment_outlined, size: 16),
+                      label: Text('Add Comment', style: GoogleFonts.inter(fontSize: 12)),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 6),
                 Text(
                   _formatDate(change.createdAt),
@@ -389,56 +473,72 @@ class _RequestCard extends StatelessWidget {
             ),
           ),
 
-          // Admin action buttons (only for pending)
-          if (change.status == 'pending' && provider.isAdmin)
-            Padding(
-              padding:
-                  const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _reject(context, provider),
-                      icon: const Icon(Icons.close, size: 16),
-                      label: const Text('Reject'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.danger,
-                        side: const BorderSide(color: AppTheme.danger),
+          // Admin and Supervisor action buttons
+          Builder(builder: (ctx) {
+            final isTargetSupervisor = provider.isSupervisor && change.payload['target_location_id'] == provider.supervisorLocationId;
+            final canSupervisorApprove = change.status == 'pending_supervisor' && isTargetSupervisor;
+            final canAdminApprove = change.status == 'pending' && provider.isAdmin;
+            final canSupervisorConfirm = change.status == 'pending_arrival' && isTargetSupervisor;
+
+            if (canSupervisorApprove || canAdminApprove || canSupervisorConfirm) {
+              return Padding(
+                padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _reject(context, provider),
+                        icon: const Icon(Icons.close, size: 16),
+                        label: const Text('Reject'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.danger,
+                          side: const BorderSide(color: AppTheme.danger),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _approve(context, provider),
-                      icon: const Icon(Icons.check, size: 16),
-                      label: const Text('Approve'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.success,
-                        foregroundColor: Colors.white,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          if (canSupervisorApprove) {
+                            _advance(context, provider, 'pending', 'Approve Request');
+                          } else if (canAdminApprove) {
+                            _advance(context, provider, change.changeType == 'shift_request' ? 'pending_arrival' : 'approved', 'Approve Request');
+                          } else if (canSupervisorConfirm) {
+                            _advance(context, provider, 'approved', 'Confirm Arrival');
+                          }
+                        },
+                        icon: const Icon(Icons.check, size: 16),
+                        label: Text(canSupervisorConfirm ? 'Confirm' : 'Approve'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.success,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
+                  ],
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          }),
         ],
       ),
     );
   }
 
-  Future<void> _approve(BuildContext context, AppProvider provider) async {
+  Future<void> _advance(BuildContext context, AppProvider provider, String nextStatus, String title) async {
     final noteCtrl = TextEditingController();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (dCtx) => AlertDialog(
         backgroundColor: AppTheme.bgCard,
-        title: Text('Approve Request',
+        title: Text(title,
             style: GoogleFonts.inter(color: AppTheme.textPrimary)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('This will apply the change immediately.',
+            Text(nextStatus == 'approved' ? 'This will apply the change immediately.' : 'This will move the request to the next step.',
                 style: GoogleFonts.inter(
                     color: AppTheme.textSecondary, fontSize: 13)),
             const SizedBox(height: 12),
@@ -460,14 +560,51 @@ class _RequestCard extends StatelessWidget {
             onPressed: () => Navigator.pop(dCtx, true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.success),
-            child: const Text('Approve'),
+            child: const Text('Confirm'),
           ),
         ],
       ),
     );
     if (confirm == true && context.mounted) {
-      await provider.approveChange(change,
+      await provider.advanceStatus(change, nextStatus,
           note: noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim());
+    }
+  }
+
+  Future<void> _showCommentDialog(BuildContext context, AppProvider provider) async {
+    final textCtrl = TextEditingController();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dCtx) => AlertDialog(
+        backgroundColor: AppTheme.bgCard,
+        title: Text('Add Comment',
+            style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+        content: TextField(
+          controller: textCtrl,
+          style: const TextStyle(color: AppTheme.textPrimary),
+          decoration: const InputDecoration(
+            labelText: 'Your comment',
+            hintText: 'Type something...',
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dCtx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dCtx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary),
+            child: const Text('Post'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && textCtrl.text.trim().isNotEmpty && context.mounted) {
+      final authorName = provider.isAdmin ? 'Admin' : 'Supervisor';
+      await provider.pendingService.addComment(change, authorName, textCtrl.text.trim());
+      await provider.loadPendingChanges();
     }
   }
 
@@ -511,6 +648,33 @@ class _RequestCard extends StatelessWidget {
   String _prettify(String key) =>
       key.replaceAll('_', ' ').split(' ').map((w) =>
           w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}').join(' ');
+
+  Future<void> _deleteRequest(BuildContext context, AppProvider provider, PendingChange change) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dCtx) => AlertDialog(
+        backgroundColor: AppTheme.bgCard,
+        title: Text('Delete Request',
+            style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+        content: Text('Are you sure you want to permanently delete this request?',
+            style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dCtx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dCtx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      await provider.pendingService.deleteRequest(change.id);
+      await provider.loadPendingChanges();
+    }
+  }
 
   String _formatDate(DateTime dt) {
     final now = DateTime.now();
