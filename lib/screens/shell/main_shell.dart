@@ -20,13 +20,13 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
 
-  static int _locationIndex(String location, bool isAdmin) {
+  static int _locationIndex(String location, bool isAdmin, bool isSupervisor) {
     if (location.startsWith('/dashboard')) return 0;
     if (location.startsWith('/staff'))     return 1;
     if (location.startsWith('/leave'))     return 2;
     if (location.startsWith('/shifts'))    return 3;
     if (location.startsWith('/complaints')) return 4;
-    if (location.startsWith('/requests'))  return isAdmin ? 5 : -1;
+    if (location.startsWith('/requests'))  return (isAdmin || isSupervisor) ? 5 : -1;
     return 0;
   }
 
@@ -113,7 +113,8 @@ class _MainShellState extends State<MainShell> {
     final location = GoRouterState.of(context).uri.toString();
     final provider  = context.watch<AppProvider>();
     final isAdmin   = provider.isAdmin;
-    final idx       = _locationIndex(location, isAdmin);
+    final isSupervisor = provider.isSupervisor;
+    final idx       = _locationIndex(location, isAdmin, isSupervisor);
 
     // Only show nav on top-level screens
     final showNav = location == '/dashboard' ||
@@ -176,7 +177,7 @@ class _MainShellState extends State<MainShell> {
                       isSelected: idx == 4,
                       onTap: () => context.go('/complaints'),
                     ),
-                    if (isAdmin)
+                    if (isAdmin || isSupervisor)
                       _NavItem(
                         icon: Icons.receipt_long_outlined,
                         label: 'Requests',
