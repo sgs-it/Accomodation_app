@@ -25,7 +25,8 @@ class _MainShellState extends State<MainShell> {
     if (location.startsWith('/staff'))     return 1;
     if (location.startsWith('/leave'))     return 2;
     if (location.startsWith('/shifts'))    return 3;
-    if (location.startsWith('/requests'))  return isAdmin ? 4 : -1;
+    if (location.startsWith('/complaints')) return 4;
+    if (location.startsWith('/requests'))  return isAdmin ? 5 : -1;
     return 0;
   }
 
@@ -119,6 +120,7 @@ class _MainShellState extends State<MainShell> {
         location == '/staff' ||
         location == '/leave' ||
         location == '/shifts' ||
+        location == '/complaints' ||
         location == '/requests';
 
     return Scaffold(
@@ -168,11 +170,17 @@ class _MainShellState extends State<MainShell> {
                       isSelected: idx == 3,
                       onTap: () => context.go('/shifts'),
                     ),
+                    _NavItem(
+                      icon: Icons.report_problem_outlined,
+                      label: 'Complaints',
+                      isSelected: idx == 4,
+                      onTap: () => context.go('/complaints'),
+                    ),
                     if (isAdmin)
                       _NavItem(
                         icon: Icons.receipt_long_outlined,
                         label: 'Requests',
-                        isSelected: idx == 4,
+                        isSelected: idx == 5,
                         onTap: () => context.go('/requests'),
                         badgeCount: provider.pendingCount,
                       ),

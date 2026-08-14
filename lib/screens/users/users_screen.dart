@@ -97,7 +97,7 @@ class _UsersScreenState extends State<UsersScreen> {
     String pass = _passCtrl.text;
     final name = _nameCtrl.text.trim();
     
-    if (_selectedRole == 'staff') {
+    if (_selectedRole == 'staff' || _selectedRole == 'supervisor') {
       pass = 'SGS$id';
     }
     
@@ -116,7 +116,7 @@ class _UsersScreenState extends State<UsersScreen> {
       return;
     }
 
-    if (_selectedRole == 'staff' && _selectedBed == null) {
+    if ((_selectedRole == 'staff' || _selectedRole == 'supervisor') && _selectedBed == null) {
       setState(() => _message = '✗ Please select a Location, Room, and Bed.');
       return;
     }
@@ -129,7 +129,7 @@ class _UsersScreenState extends State<UsersScreen> {
         displayName: name,
         password:    pass,
         role:        _selectedRole,
-        selectedBedId: _selectedRole == 'staff' ? _selectedBed?.id : null,
+        selectedBedId: (_selectedRole == 'staff' || _selectedRole == 'supervisor') ? _selectedBed?.id : null,
       );
       
       final successMsg = '✓ $_selectedRole account created and bed assigned for $name ($id)';
@@ -260,6 +260,7 @@ class _UsersScreenState extends State<UsersScreen> {
               ),
               items: const [
                 DropdownMenuItem(value: 'staff', child: Text('Staff Member')),
+                DropdownMenuItem(value: 'supervisor', child: Text('Supervisor')),
                 DropdownMenuItem(value: 'admin', child: Text('Administrator')),
               ],
               onChanged: (v) {
@@ -277,7 +278,7 @@ class _UsersScreenState extends State<UsersScreen> {
                 }
               },
             ),
-            if (_selectedRole == 'staff') ...[
+            if (_selectedRole == 'staff' || _selectedRole == 'supervisor') ...[
               const SizedBox(height: 14),
               DropdownButtonFormField<LocationModel>(
                 value: _selectedLocation,

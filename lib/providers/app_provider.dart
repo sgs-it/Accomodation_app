@@ -48,6 +48,7 @@ class AppProvider extends ChangeNotifier {
   bool                   get loading       => _loading;
   String?                get error         => _error;
   bool get isAdmin => _role == UserRole.admin;
+  bool get isSupervisor => _role == UserRole.supervisor;
   bool get isStaff => _role == UserRole.staff;
   AuthService    get authService    => _authService;
   PendingService get pendingService => _pendingService;
@@ -67,7 +68,7 @@ class AppProvider extends ChangeNotifier {
         await FcmService().setupFCM();
       }
 
-      if (isStaff) {
+      if (isStaff || isSupervisor) {
         _myStaffRecord = await _authService.getMyStaffRecord();
       }
       await loadLocations();

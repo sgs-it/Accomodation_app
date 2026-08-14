@@ -47,7 +47,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
     setState(() => _loading = true);
     final provider = context.read<AppProvider>();
     _shifts = await _shiftService.getAll();
-    if (provider.isStaff) {
+    if (provider.isStaff || provider.isSupervisor) {
       _myPending = await provider.pendingService.getMyChanges();
     }
     setState(() => _loading = false);
@@ -57,7 +57,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
     final isAdmin = provider.isAdmin;
-    final isStaff = provider.isStaff;
+    final isStaff = provider.isStaff || provider.isSupervisor;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),

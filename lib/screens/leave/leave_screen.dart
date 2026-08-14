@@ -41,7 +41,7 @@ class _LeaveScreenState extends State<LeaveScreen>
     setState(() => _loading = true);
     final provider = context.read<AppProvider>();
     _onLeave = await _staffService.getOnLeave();
-    if (provider.isStaff) {
+    if (provider.isStaff || provider.isSupervisor) {
       _myPending = await provider.pendingService.getMyChanges();
     }
     setState(() => _loading = false);
@@ -51,7 +51,7 @@ class _LeaveScreenState extends State<LeaveScreen>
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
     final isAdmin = provider.isAdmin;
-    final isStaff = provider.isStaff;
+    final isStaff = provider.isStaff || provider.isSupervisor;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -286,13 +286,8 @@ class _LeaveRequestSheetState extends State<_LeaveRequestSheet> {
   DateTime? _fromDate;
   DateTime? _toDate;
 
-  String _leaveType = 'Sick Leave';
-  final List<String> _leaveTypes = [
-    'Sick Leave',
-    'Annual leave',
-    'Personal leave',
-    'Emergency Leave'
-  ];
+  String _leaveType = 'Annual leave';
+  List<String> _leaveTypes = [];
   bool _hasSupportingDocs = false;
 
   int _pastSickLeaveCount = 0;
@@ -304,6 +299,13 @@ class _LeaveRequestSheetState extends State<_LeaveRequestSheet> {
   @override
   void initState() {
     super.initState();
+    if (widget.provider.isStaff || widget.provider.isSupervisor) {
+      _leaveTypes = ['Emergency Leave', 'Annual leave'];
+      _leaveType = 'Annual leave';
+    } else {
+      _leaveTypes = ['Sick Leave', 'Annual leave', 'Personal leave', 'Emergency Leave'];
+      _leaveType = 'Sick Leave';
+    }
     _fetchPastLeaves();
   }
 

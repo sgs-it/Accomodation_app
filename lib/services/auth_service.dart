@@ -4,7 +4,7 @@ import 'dart:convert';
 import '../core/constants.dart';
 
 
-enum UserRole { admin, staff, unknown }
+enum UserRole { admin, supervisor, staff, unknown }
 
 class AuthService {
   final _client = Supabase.instance.client;
@@ -46,6 +46,7 @@ class AuthService {
       if (resp != null) {
         final role = resp['role'] as String?;
         if (role == 'admin') return UserRole.admin;
+        if (role == 'supervisor') return UserRole.supervisor;
         if (role == 'staff') return UserRole.staff;
       }
       
@@ -115,7 +116,7 @@ class AuthService {
       rethrow;
     }
 
-    if (role == 'staff') {
+    if (role == 'staff' || role == 'supervisor') {
       // 1. Create staff profile record directly
       final staffResponse = await _client
           .from('staff')

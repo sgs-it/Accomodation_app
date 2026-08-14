@@ -23,6 +23,7 @@ import 'screens/beds/beds_filter_screen.dart';
 import 'screens/staff/unassigned_staff_screen.dart';
 import 'screens/staff/on_leave_staff_screen.dart';
 import 'screens/dashboard/notifications_screen.dart';
+import 'screens/complaints/complaints_screen.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
@@ -94,6 +95,9 @@ final _router = GoRouter(
         GoRoute(
             path: '/notifications',
             builder: (ctx, state) => const NotificationsScreen()),
+        GoRoute(
+            path: '/complaints',
+            builder: (ctx, state) => const ComplaintsScreen()),
       ],
     ),
   ],
