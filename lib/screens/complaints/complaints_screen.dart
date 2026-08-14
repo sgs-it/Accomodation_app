@@ -283,7 +283,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                   hintText: 'Describe your issue or report...',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppTheme.border),
+                    borderSide: const BorderSide(color: AppTheme.divider),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
