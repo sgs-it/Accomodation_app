@@ -404,7 +404,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
     }
 
     final reasonCtrl = TextEditingController();
-    final locationCtrl = TextEditingController();
+    String? selectedLocationId;
 
     await showModalBottomSheet(
       context: context,
@@ -414,26 +414,27 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 24, right: 24, top: 24,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: AppTheme.divider,
-                  borderRadius: BorderRadius.circular(2),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => Padding(
+          padding: EdgeInsets.only(
+            left: 24, right: 24, top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
             Text('Request Room Shift',
                 style: GoogleFonts.inter(
                     color: AppTheme.textPrimary,
@@ -445,14 +446,22 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
                     color: AppTheme.textSecondary, fontSize: 13)),
             const SizedBox(height: 24),
 
-            TextField(
-              controller: locationCtrl,
-              style: const TextStyle(color: AppTheme.textPrimary),
+            DropdownButtonFormField<String>(
               decoration: const InputDecoration(
-                labelText: 'Requested Place/Location',
-                hintText: 'E.g., Building A, Room 102',
+                labelText: 'Target Location',
                 prefixIcon: Icon(Icons.location_on_outlined, color: AppTheme.textMuted),
               ),
+              dropdownColor: AppTheme.bgCard,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              value: selectedLocationId,
+              items: provider.locations.map((loc) {
+                return DropdownMenuItem(value: loc.id, child: Text(loc.name));
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() => selectedLocationId = val);
+                }
+              },
             ),
             const SizedBox(height: 12),
 
@@ -473,14 +482,17 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  if (reasonCtrl.text.trim().isEmpty || locationCtrl.text.trim().isEmpty) return;
+                  if (reasonCtrl.text.trim().isEmpty || selectedLocationId == null) return;
                   Navigator.pop(ctx);
+
+                  final targetLocName = provider.locations.firstWhere((l) => l.id == selectedLocationId).name;
 
                   final payload = <String, dynamic>{
                     'staff_name': staffRecord['name'],
                     'staff_id': staffRecord['staff_id'],
                     'reason': reasonCtrl.text.trim(),
-                    'requested_room': locationCtrl.text.trim(),
+                    'target_location_id': selectedLocationId,
+                    'requested_room': targetLocName, // Keep this for backward compatibility in UI rendering
                     'old_room': staffRecord['bed_assignments'] != null && (staffRecord['bed_assignments'] as List).isNotEmpty
                         ? ((staffRecord['bed_assignments'] as List).first as Map)['bed']['bed_code']
                         : null,
@@ -496,7 +508,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
                       targetTable: 'staff',
                       targetId: staffRecord['id'] as String?,
                       payload: payload,
-                      initialStatus: 'pending_supervisor',
+                      initialStatus: 'pending', // skips current supervisor completely
                     );
                     await provider.loadPendingChanges();
                     _load();
@@ -528,6 +540,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
             ),
           ],
         ),
+      ),
       ),
     );
   }

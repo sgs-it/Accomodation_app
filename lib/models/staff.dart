@@ -13,6 +13,7 @@ class StaffModel {
   final String? currentBedCode;
   final String? currentLocationName;
   final String? currentLocationId;
+  final String? authUserId;
 
   const StaffModel({
     required this.id,
@@ -25,6 +26,7 @@ class StaffModel {
     this.currentBedCode,
     this.currentLocationName,
     this.currentLocationId,
+    this.authUserId,
   });
 
   factory StaffModel.fromJson(Map<String, dynamic> json) {
@@ -60,6 +62,7 @@ class StaffModel {
       currentBedCode: bedCode,
       currentLocationName: locName,
       currentLocationId: locId,
+      authUserId: json['auth_user_id'] as String?,
     );
   }
 

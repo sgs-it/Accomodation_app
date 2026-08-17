@@ -31,6 +31,7 @@ class _StaffListScreenState extends State<StaffListScreen>
   String _statusFilter = '';
   late TabController _tabController;
   List<Map<String, dynamic>> _admins = [];
+  List<Map<String, dynamic>> _supervisors = [];
   int _unassignedCount = 0;
 
   @override
@@ -55,6 +56,34 @@ class _StaffListScreenState extends State<StaffListScreen>
       search: _searchCtrl.text.trim(),
       status: _statusFilter.isEmpty ? null : _statusFilter,
     );
+
+    if (provider.isAdmin || provider.isSupervisor) {
+      try {
+        final rolesResp = await Supabase.instance.client
+            .from('user_roles')
+            .select('user_id, role, location:locations(name)')
+            .eq('role', 'supervisor');
+            
+        final supervisorRoles = <String, String>{};
+        for (final r in rolesResp) {
+          final uid = r['user_id'] as String;
+          final locName = (r['location'] as Map?)?['name'] as String? ?? 'No Location';
+          supervisorRoles[uid] = locName;
+        }
+
+        _supervisors = _staff.where((s) => s.authUserId != null && supervisorRoles.containsKey(s.authUserId)).map((s) {
+          return {
+            'id': s.authUserId,
+            'name': s.name,
+            'email': s.staffId,
+            'location': supervisorRoles[s.authUserId],
+          };
+        }).toList();
+      } catch (e) {
+        debugPrint('Error fetching supervisors: $e');
+      }
+    }
+
     if (provider.isAdmin) {
       // Load ALL pending changes and group by staff
       final all = await provider.pendingService.getAll(status: 'pending');
@@ -228,7 +257,7 @@ class _StaffListScreenState extends State<StaffListScreen>
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: const Color(0xFF8B5CF6),
-        title: Text('Staff & Admins',
+        title: Text(provider.isAdmin ? 'Staff & Management' : 'Staff & Supervisors',
             style: GoogleFonts.inter(
                 color: Colors.white, fontWeight: FontWeight.w700)),
         bottom: TabBar(
@@ -237,7 +266,10 @@ class _StaffListScreenState extends State<StaffListScreen>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           labelStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
-          tabs: const [Tab(text: 'Staff Members'), Tab(text: 'Admin Accounts')],
+          tabs: [
+            const Tab(text: 'Staff Members'),
+            Tab(text: provider.isAdmin ? 'Admins & Supervisors' : 'Supervisors'),
+          ],
         ),
       ),
       body: TabBarView(
@@ -456,23 +488,40 @@ class _StaffListScreenState extends State<StaffListScreen>
           ],
         ),
       ),
-      // Admins Tab
-      _buildAdminsTab(),
+      // Management Tab
+      _buildManagementTab(),
         ],
       ),
     );
   }
 
-  Widget _buildAdminsTab() {
+  Widget _buildManagementTab() {
+    final provider = context.watch<AppProvider>();
+    final isAdmin = provider.isAdmin;
+    
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_admins.isEmpty) {
+    
+    if (isAdmin && _admins.isEmpty && _supervisors.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.admin_panel_settings_outlined, color: AppTheme.textMuted, size: 56),
             const SizedBox(height: 16),
-            Text('No Admin Accounts',
+            Text('No Management Accounts',
+                style: GoogleFonts.inter(
+                    color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
+    } else if (!isAdmin && _supervisors.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.supervisor_account_outlined, color: AppTheme.textMuted, size: 56),
+            const SizedBox(height: 16),
+            Text('No Supervisors',
                 style: GoogleFonts.inter(
                     color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
           ],
@@ -480,12 +529,102 @@ class _StaffListScreenState extends State<StaffListScreen>
       );
     }
 
-    return ListView.builder(
+    return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
-      itemCount: _admins.length,
-      itemBuilder: (ctx, i) {
-        final admin = _admins[i];
-        final email = admin['email'] as String? ?? 'Unknown';
+      children: [
+        if (isAdmin && _admins.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text('Admins', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary)),
+          ),
+          ..._admins.map((admin) => _buildAdminCard(admin)),
+          const SizedBox(height: 24),
+        ],
+        if (_supervisors.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text('Supervisors', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary)),
+          ),
+          ..._supervisors.map((supervisor) => _buildSupervisorCard(supervisor)),
+        ]
+      ],
+    );
+  }
+
+  Widget _buildSupervisorCard(Map<String, dynamic> supervisor) {
+    final name = supervisor['name'] as String? ?? 'Unknown';
+    final email = supervisor['email'] as String? ?? 'Unknown';
+    final location = supervisor['location'] as String? ?? 'No Location';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primary.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48, height: 48,
+            decoration: BoxDecoration(
+              color: AppTheme.secondary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Center(
+              child: Icon(Icons.supervisor_account, color: AppTheme.secondary),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    style: GoogleFonts.inter(
+                        color: Colors.black87,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(email,
+                    style: GoogleFonts.inter(
+                        color: AppTheme.textMuted,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500)),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.secondary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'SUPERVISOR • $location',
+                    style: GoogleFonts.inter(
+                      color: AppTheme.secondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminCard(Map<String, dynamic> admin) {
+    final email = admin['email'] as String? ?? 'Unknown';
         final date = admin['created_at'] != null 
           ? DateTime.tryParse(admin['created_at'].toString()) 
           : null;
@@ -559,8 +698,6 @@ class _StaffListScreenState extends State<StaffListScreen>
             ],
           ),
         );
-      },
-    );
   }
 
   void _confirmDeleteAdmin(BuildContext context, String adminId, String email) {

@@ -578,23 +578,6 @@ class _RequestCard extends StatelessWidget {
                       color: AppTheme.textSecondary, fontSize: 13)),
               const SizedBox(height: 12),
               
-              if (isAdminApproveShift) ...[
-                DropdownButtonFormField<LocationModel>(
-                  value: selectedLocation,
-                  style: const TextStyle(color: AppTheme.textPrimary),
-                  dropdownColor: AppTheme.bgCard,
-                  decoration: const InputDecoration(
-                    labelText: 'Target Location',
-                    hintText: 'Select where the staff is moving',
-                  ),
-                  items: provider.locations.map((loc) {
-                    return DropdownMenuItem(value: loc, child: Text(loc.name));
-                  }).toList(),
-                  onChanged: (val) => setState(() => selectedLocation = val),
-                ),
-                const SizedBox(height: 12),
-              ],
-
               if (isSupervisorConfirmShift) ...[
                 if (isLoadingBeds)
                   const Padding(
@@ -630,26 +613,34 @@ class _RequestCard extends StatelessWidget {
           ),
           actions: [
             TextButton(
-                onPressed: isLoadingBeds ? null : () => Navigator.pop(dCtx, false),
+                onPressed: isLoadingBeds ? null : () => Navigator.pop(dCtx, null),
                 child: const Text('Cancel')),
             ElevatedButton(
               onPressed: isLoadingBeds
                   ? null
                   : () {
-                      if (isAdminApproveShift && selectedLocation == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                            content: Text('Please select a target location.')));
-                        return;
-                      }
                       if (isSupervisorConfirmShift && selectedBed == null) {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                            content: Text('Please assign a vacant bed.')));
+                          content: Text('Please select a bed to assign'),
+                          backgroundColor: AppTheme.danger,
+                        ));
                         return;
                       }
-                      Navigator.pop(dCtx, true);
+
+                      final note = noteCtrl.text.trim();
+                      final payloadUpdates = <String, dynamic>{};
+                      if (isAdminApproveShift) {
+                        // Keep target_location_id from original payload, no need to update it here
+                      }
+                      if (isSupervisorConfirmShift && selectedBed != null) {
+                        payloadUpdates['new_bed_id'] = selectedBed!.id;
+                      }
+
+                      Navigator.pop(dCtx, {'note': note.isEmpty ? null : note, 'payloadUpdates': payloadUpdates});
                     },
               style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.success),
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white),
               child: const Text('Confirm'),
             ),
           ],
@@ -657,16 +648,12 @@ class _RequestCard extends StatelessWidget {
       }),
     );
 
-    if (confirm == true && context.mounted) {
-      Map<String, dynamic>? updatedPayload;
-      if (isAdminApproveShift && selectedLocation != null) {
-        updatedPayload = {'target_location_id': selectedLocation!.id};
-      } else if (isSupervisorConfirmShift && selectedBed != null) {
-        updatedPayload = {'new_bed_id': selectedBed!.id};
-      }
+    if (confirm != null && confirm is Map && context.mounted) {
+      final note = confirm['note'] as String?;
+      final updatedPayload = confirm['payloadUpdates'] as Map<String, dynamic>?;
 
       await provider.advanceStatus(change, nextStatus,
-          note: noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim(),
+          note: note,
           updatedPayload: updatedPayload);
     }
   }
