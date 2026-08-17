@@ -147,12 +147,13 @@ class _MainShellState extends State<MainShell> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _NavItem(
-                      icon: Icons.home_rounded,
-                      label: 'Dashboard',
-                      isSelected: idx == 0,
-                      onTap: () => context.go('/dashboard'),
-                    ),
+                    if (!provider.isStaff)
+                      _NavItem(
+                        icon: Icons.home_rounded,
+                        label: 'Dashboard',
+                        isSelected: idx == 0,
+                        onTap: () => context.go('/dashboard'),
+                      ),
                     _NavItem(
                       icon: Icons.people_outline_rounded,
                       label: 'Staff',

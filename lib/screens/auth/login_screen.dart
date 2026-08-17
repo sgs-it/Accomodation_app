@@ -63,7 +63,13 @@ class _LoginScreenState extends State<LoginScreen>
         throw Exception('deactivated');
       }
       
-      if (mounted) context.go('/dashboard');
+      if (mounted) {
+        if (provider.isStaff) {
+          context.go('/staff');
+        } else {
+          context.go('/dashboard');
+        }
+      }
     } catch (e) {
       final String errorStr = e.toString().toLowerCase();
       setState(() {
