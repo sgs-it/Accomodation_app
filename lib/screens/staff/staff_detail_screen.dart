@@ -29,6 +29,8 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
   List<ShiftHistoryModel> _shifts = [];
   String? _currentBed;
 
+  bool _isSupervisor = false;
+
   @override
   void initState() {
     super.initState();
@@ -41,10 +43,30 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
       _staff = await _staffService.getById(widget.staffId);
       _shifts = await _shiftService.getAll(staffId: widget.staffId);
       _currentBed = await _queryCurrentBed(widget.staffId);
+      if (_staff != null) {
+        _isSupervisor = await _checkIfSupervisor(_staff!.id);
+      }
     } catch (e) {
       debugPrint('Error: $e');
     }
     setState(() => _loading = false);
+  }
+
+  Future<bool> _checkIfSupervisor(String staffDbId) async {
+    try {
+      final supabase = StaffServiceHelper.client;
+      // 1. Get auth_user_id from staff
+      final staffResp = await supabase.from('staff').select('auth_user_id').eq('id', staffDbId).maybeSingle();
+      if (staffResp == null || staffResp['auth_user_id'] == null) return false;
+      
+      // 2. Check if role is supervisor
+      final authUserId = staffResp['auth_user_id'] as String;
+      final roleResp = await supabase.from('user_roles').select('role').eq('user_id', authUserId).maybeSingle();
+      if (roleResp != null && roleResp['role'] == 'supervisor') {
+        return true;
+      }
+    } catch (_) {}
+    return false;
   }
 
   Future<String?> _queryCurrentBed(String staffId) async {
@@ -183,18 +205,36 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
                           style: GoogleFonts.inter(
                               color: AppTheme.textMuted, fontSize: 13)),
                       const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.12),
-
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(staff.status,
-                            style: GoogleFonts.inter(
-                                color: statusColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700)),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(staff.status,
+                                style: GoogleFonts.inter(
+                                    color: statusColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700)),
+                          ),
+                          if (_isSupervisor) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text('Supervisor',
+                                  style: GoogleFonts.inter(
+                                      color: AppTheme.primary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700)),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
