@@ -124,25 +124,90 @@ class _StaffListScreenState extends State<StaffListScreen>
 
     if (isStaff) {
       return Scaffold(
-        backgroundColor: AppTheme.bgDark,
-        appBar: AppBar(
-          title: Text('My Profile',
-              style: GoogleFonts.inter(
-                  color: AppTheme.textPrimary, fontWeight: FontWeight.w700)),
-          bottom: TabBar(
-            controller: _tabController,
-            indicatorColor: AppTheme.primary,
-            labelColor: AppTheme.primary,
-            unselectedLabelColor: AppTheme.textMuted,
-            labelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
-            tabs: const [Tab(text: 'My Info'), Tab(text: 'My Requests')],
-          ),
-        ),
-        body: TabBarView(
-          controller: _tabController,
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: Stack(
           children: [
-            _buildStaffMyInfo(provider),
-            _buildMyRequestsTab(),
+            Column(
+              children: [
+                // Purple Header
+                ClipPath(
+                  clipper: _HeaderClipper(),
+                  child: Container(
+                    padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16, bottom: 40, left: 20, right: 20),
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF8B5CF6), Color(0xFF4C1D95)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'My Profile',
+                                style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                Transform.translate(
+                  offset: const Offset(0, -20),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    child: TabBar(
+                      controller: _tabController,
+                      indicatorColor: const Color(0xFF8B5CF6),
+                      labelColor: const Color(0xFF8B5CF6),
+                      unselectedLabelColor: Colors.black54,
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+                      tabs: const [
+                        Tab(text: 'My Info'),
+                        Tab(text: 'My Requests'),
+                      ],
+                    ),
+                  ),
+                ),
+
+                Expanded(
+                  child: Transform.translate(
+                    offset: const Offset(0, -10),
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildStaffMyInfo(provider),
+                        _buildMyRequestsTab(),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       );
@@ -640,23 +705,34 @@ class _StaffListScreenState extends State<StaffListScreen>
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Center(
             child: Container(
-              width: 80, height: 80,
+              width: 88, height: 88,
               decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.15),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF8B5CF6), Color(0xFF4C1D95)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
               child: Center(
                 child: Text(
                   _getInitials(rec['name'] as String?),
                   style: GoogleFonts.inter(
-                      color: AppTheme.primary,
-                      fontSize: 28,
+                      color: Colors.white,
+                      fontSize: 32,
                       fontWeight: FontWeight.bold),
                 ),
               ),
@@ -666,17 +742,23 @@ class _StaffListScreenState extends State<StaffListScreen>
           Center(
             child: Text(rec['name'] as String? ?? '',
                 style: GoogleFonts.inter(
-                    color: AppTheme.textPrimary,
-                    fontSize: 20,
+                    color: Colors.black87,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: 4),
           Center(
             child: Text('ID: ${rec['staff_id'] ?? ''}',
                 style: GoogleFonts.inter(
-                    color: AppTheme.textMuted, fontSize: 13)),
+                    color: Colors.black54, fontSize: 14, fontWeight: FontWeight.w500)),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
+          Text('Personal Details',
+              style: GoogleFonts.inter(
+                  color: Colors.black87,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
           _infoTile(Icons.badge_outlined, 'Occupant ID', rec['staff_id'] ?? '-'),
           _infoTile(Icons.circle, 'Status', rec['status'] ?? '-'),
           if (locationText != null)
@@ -689,18 +771,21 @@ class _StaffListScreenState extends State<StaffListScreen>
             _infoTile(Icons.phone_outlined, 'Phone', rec['phone']),
           if (rec['nationality'] != null)
             _infoTile(Icons.flag_outlined, 'Nationality', rec['nationality']),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
+            height: 50,
             child: ElevatedButton.icon(
               onPressed: () => _showEditProfileDialog(context, provider, rec),
-              icon: const Icon(Icons.edit),
+              icon: const Icon(Icons.edit, size: 20),
               label: const Text('Edit Profile'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.bgCard,
-                foregroundColor: AppTheme.primary,
-                side: const BorderSide(color: AppTheme.primary, width: 1),
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF8B5CF6),
+                side: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+                textStyle: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -719,28 +804,45 @@ class _StaffListScreenState extends State<StaffListScreen>
   Widget _infoTile(IconData icon, String label, String value) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.bgCard,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Row(
         children: [
-          Icon(icon, color: AppTheme.textMuted, size: 18),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style: GoogleFonts.inter(
-                      color: AppTheme.textMuted, fontSize: 11)),
-              Text(value,
-                  style: GoogleFonts.inter(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14)),
-            ],
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: const Color(0xFF8B5CF6), size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: GoogleFonts.inter(
+                        color: Colors.black54, fontSize: 12, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 2),
+                Text(value,
+                    style: GoogleFonts.inter(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15)),
+              ],
+            ),
           ),
         ],
       ),
@@ -756,21 +858,21 @@ class _StaffListScreenState extends State<StaffListScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.pending_actions_outlined,
-                size: 56, color: AppTheme.textMuted.withValues(alpha: 0.4)),
+                size: 56, color: Colors.black26),
             const SizedBox(height: 12),
             Text('No requests yet',
                 style: GoogleFonts.inter(
-                    color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+                    color: Colors.black87, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            Text('Use the Leave page to submit a request',
+            Text('Use the Leave or Shifts page to submit requests',
                 style: GoogleFonts.inter(
-                    color: AppTheme.textSecondary, fontSize: 13)),
+                    color: Colors.black54, fontSize: 13)),
           ],
         ),
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       itemCount: pending.length,
       itemBuilder: (ctx, i) => _PendingMiniCard(change: pending[i]),
     );
@@ -785,36 +887,36 @@ class _StaffListScreenState extends State<StaffListScreen>
     showDialog(
       context: ctx,
       builder: (dCtx) => AlertDialog(
-        backgroundColor: AppTheme.bgCard,
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Add Staff Member',
-            style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+            style: GoogleFonts.inter(color: Colors.black87)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: staffIdCtrl,
-                style: const TextStyle(color: AppTheme.textPrimary),
+                style: const TextStyle(color: Colors.black87),
                 decoration: const InputDecoration(labelText: 'Staff ID (e.g. 1265)'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: nameCtrl,
-                style: const TextStyle(color: AppTheme.textPrimary),
+                style: const TextStyle(color: Colors.black87),
                 decoration: const InputDecoration(labelText: 'Full Name'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: phoneCtrl,
-                style: const TextStyle(color: AppTheme.textPrimary),
+                style: const TextStyle(color: Colors.black87),
                 decoration: const InputDecoration(labelText: 'Phone (optional)'),
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: natCtrl,
-                style: const TextStyle(color: AppTheme.textPrimary),
+                style: const TextStyle(color: Colors.black87),
                 decoration: const InputDecoration(labelText: 'Nationality (optional)'),
               ),
             ],
@@ -823,7 +925,7 @@ class _StaffListScreenState extends State<StaffListScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dCtx),
-            child: Text('Cancel', style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+            child: Text('Cancel', style: GoogleFonts.inter(color: Colors.black54)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -845,7 +947,11 @@ class _StaffListScreenState extends State<StaffListScreen>
                 }
               }
             },
-            style: ElevatedButton.styleFrom(minimumSize: Size.zero),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8B5CF6),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             child: const Text('Add'),
           ),
         ],
@@ -860,9 +966,9 @@ class _PendingMiniCard extends StatelessWidget {
 
   Color get _color {
     switch (change.status) {
-      case 'approved': return AppTheme.success;
-      case 'rejected': return AppTheme.danger;
-      default: return AppTheme.warning;
+      case 'approved': return const Color(0xFF10B981); // Green
+      case 'rejected': return const Color(0xFFEF4444); // Red
+      default: return const Color(0xFFF59E0B); // Amber
     }
   }
 
@@ -874,31 +980,55 @@ class _PendingMiniCard extends StatelessWidget {
             ? 'Room Shift'
             : change.changeType;
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppTheme.bgCard,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _color.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Row(
         children: [
           Container(
-            width: 8, height: 8,
-            decoration: BoxDecoration(color: _color, shape: BoxShape.circle),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              change.changeType == 'leave_request' ? Icons.beach_access : Icons.swap_horiz,
+              color: _color,
+              size: 20,
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 14),
           Expanded(
-            child: Text(label,
-                style: GoogleFonts.inter(
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: GoogleFonts.inter(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(change.createdAt.toString().substring(0, 10),
+                    style: GoogleFonts.inter(
+                        color: Colors.black54, fontSize: 11)),
+              ],
+            ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: _color.withValues(alpha: 0.12),
+              color: _color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(change.status.toUpperCase(),
