@@ -881,7 +881,7 @@ class _MyRequestCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ...change.payload.entries
-                    .where((e) => e.key != 'staff_id' && e.key != 'staff_name')
+                    .where((e) => e.key != 'staff_id' && e.key != 'staff_name' && !e.key.contains('_id'))
                     .map((e) => Padding(
                           padding: const EdgeInsets.only(bottom: 4),
                           child: Row(

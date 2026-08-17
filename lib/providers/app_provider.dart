@@ -76,7 +76,7 @@ class AppProvider extends ChangeNotifier {
         _myStaffRecord = await _authService.getMyStaffRecord();
       }
       await loadLocations();
-      if (isAdmin) await refreshPendingCount();
+      if (isAdmin || isSupervisor) await refreshPendingCount();
     } catch (e) {
       _setError(e.toString());
     } finally {
