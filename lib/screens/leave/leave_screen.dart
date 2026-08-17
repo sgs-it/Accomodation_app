@@ -681,7 +681,7 @@ class _LeaveRequestSheetState extends State<_LeaveRequestSheet> {
         }
 
         DateTime initialD = DateTime.now();
-        DateTime firstD = DateTime.now();
+        DateTime firstD = DateTime.now().subtract(const Duration(days: 30));
         DateTime lastD = DateTime.now().add(const Duration(days: 365));
 
         if (!isFrom) {
