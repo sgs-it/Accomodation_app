@@ -1039,7 +1039,10 @@ class _PendingMiniCard extends StatelessWidget {
               color: _color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Text(change.status.toUpperCase(),
+            child: Text(
+                change.changeType == 'shift_request' && change.status == 'pending_arrival'
+                    ? 'ADMIN APPROVED, PROCEED'
+                    : change.status.toUpperCase(),
                 style: GoogleFonts.inter(
                     color: _color, fontSize: 10, fontWeight: FontWeight.bold)),
           ),

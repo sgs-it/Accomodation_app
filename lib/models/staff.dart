@@ -12,6 +12,7 @@ class StaffModel {
   // Filled by join
   final String? currentBedCode;
   final String? currentLocationName;
+  final String? currentLocationId;
 
   const StaffModel({
     required this.id,
@@ -23,11 +24,13 @@ class StaffModel {
     this.createdAt,
     this.currentBedCode,
     this.currentLocationName,
+    this.currentLocationId,
   });
 
   factory StaffModel.fromJson(Map<String, dynamic> json) {
     String? bedCode;
     String? locName;
+    String? locId;
     if (json['bed_assignments'] != null && (json['bed_assignments'] as List).isNotEmpty) {
       final assign = (json['bed_assignments'] as List).first as Map<String, dynamic>;
       if (assign['beds'] != null) {
@@ -38,6 +41,7 @@ class StaffModel {
           if (room['locations'] != null) {
             final loc = room['locations'] as Map<String, dynamic>;
             locName = loc['name'] as String?;
+            locId = loc['id'] as String?;
           }
         }
       }
@@ -55,6 +59,7 @@ class StaffModel {
           : null,
       currentBedCode: bedCode,
       currentLocationName: locName,
+      currentLocationId: locId,
     );
   }
 

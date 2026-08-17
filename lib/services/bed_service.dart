@@ -67,12 +67,17 @@ class BedService {
   }
 
   /// Get all vacant beds (for dropdown when assigning)
-  Future<List<BedModel>> getVacantBeds() async {
-    final response = await _client
+  Future<List<BedModel>> getVacantBeds({String? locationId}) async {
+    var query = _client
         .from('beds')
-        .select()
-        .eq('status', 'VACANT')
-        .order('bed_code');
+        .select('*, rooms!inner(*)')
+        .eq('status', 'VACANT');
+
+    if (locationId != null) {
+      query = query.eq('rooms.location_id', locationId);
+    }
+
+    final response = await query.order('bed_code');
 
     return (response as List)
         .map((e) => BedModel.fromJson(e as Map<String, dynamic>))

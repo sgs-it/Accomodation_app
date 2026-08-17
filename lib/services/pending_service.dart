@@ -275,6 +275,7 @@ class PendingService {
     PendingChange change,
     String newStatus, {
     String? note,
+    Map<String, dynamic>? updatedPayload,
   }) async {
     final updateData = <String, dynamic>{
       'status': newStatus,
@@ -284,8 +285,19 @@ class PendingService {
       updateData['admin_note'] = note;
     }
 
+    if (updatedPayload != null) {
+      change.payload.addAll(updatedPayload);
+      updateData['payload'] = change.payload;
+    }
+
     // If we're marking it arrived, we must execute the bed swap here!
     if (newStatus == 'approved' && change.changeType == 'shift_request') {
+      if (updatedPayload != null) {
+        await _client
+            .from('pending_changes')
+            .update(updateData)
+            .eq('id', change.id);
+      }
       await approve(change, note: note); // Handled by standard approve
       return;
     }

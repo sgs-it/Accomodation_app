@@ -175,8 +175,9 @@ class AppProvider extends ChangeNotifier {
     PendingChange change,
     String newStatus, {
     String? note,
+    Map<String, dynamic>? updatedPayload,
   }) async {
-    await _pendingService.advanceStatus(change, newStatus, note: note);
+    await _pendingService.advanceStatus(change, newStatus, note: note, updatedPayload: updatedPayload);
     await Future.wait([loadPendingChanges(), refreshPendingCount()]);
     if (newStatus == 'approved') {
       await Future.wait([loadLocations(), loadStaff()]);

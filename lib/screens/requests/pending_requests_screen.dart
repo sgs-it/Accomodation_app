@@ -6,6 +6,9 @@ import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/pending_service.dart';
+import '../../services/bed_service.dart';
+import '../../models/location.dart';
+import '../../models/bed.dart';
 
 class PendingRequestsScreen extends StatefulWidget {
   const PendingRequestsScreen({super.key});
@@ -475,8 +478,11 @@ class _RequestCard extends StatelessWidget {
 
           // Admin and Supervisor action buttons
           Builder(builder: (ctx) {
+            final targetStaff = provider.staff.where((s) => s.id == change.targetId).firstOrNull;
+            final isCurrentSupervisor = provider.isSupervisor && targetStaff?.currentLocationId == provider.supervisorLocationId;
             final isTargetSupervisor = provider.isSupervisor && change.payload['target_location_id'] == provider.supervisorLocationId;
-            final canSupervisorApprove = change.status == 'pending_supervisor' && isTargetSupervisor;
+            
+            final canSupervisorApprove = change.status == 'pending_supervisor' && isCurrentSupervisor;
             final canAdminApprove = change.status == 'pending' && provider.isAdmin;
             final canSupervisorConfirm = change.status == 'pending_arrival' && isTargetSupervisor;
 
@@ -503,9 +509,10 @@ class _RequestCard extends StatelessWidget {
                           if (canSupervisorApprove) {
                             _advance(context, provider, 'pending', 'Approve Request');
                           } else if (canAdminApprove) {
-                            _advance(context, provider, change.changeType == 'shift_request' ? 'pending_arrival' : 'approved', 'Approve Request');
+                            final isShift = change.changeType == 'shift_request';
+                            _advance(context, provider, isShift ? 'pending_arrival' : 'approved', 'Approve Request', isAdminApproveShift: isShift);
                           } else if (canSupervisorConfirm) {
-                            _advance(context, provider, 'approved', 'Confirm Arrival');
+                            _advance(context, provider, 'approved', 'Confirm Arrival', isSupervisorConfirmShift: true);
                           }
                         },
                         icon: const Icon(Icons.check, size: 16),
@@ -527,47 +534,140 @@ class _RequestCard extends StatelessWidget {
     );
   }
 
-  Future<void> _advance(BuildContext context, AppProvider provider, String nextStatus, String title) async {
+  Future<void> _advance(
+      BuildContext context, AppProvider provider, String nextStatus, String title,
+      {bool isAdminApproveShift = false, bool isSupervisorConfirmShift = false}) async {
     final noteCtrl = TextEditingController();
+    LocationModel? selectedLocation;
+    BedModel? selectedBed;
+    bool isLoadingBeds = isSupervisorConfirmShift;
+    List<BedModel> vacantBeds = [];
+
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (dCtx) => AlertDialog(
-        backgroundColor: AppTheme.bgCard,
-        title: Text(title,
-            style: GoogleFonts.inter(color: AppTheme.textPrimary)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(nextStatus == 'approved' ? 'This will apply the change immediately.' : 'This will move the request to the next step.',
-                style: GoogleFonts.inter(
-                    color: AppTheme.textSecondary, fontSize: 13)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: noteCtrl,
-              style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: const InputDecoration(
-                labelText: 'Note (optional)',
-                hintText: 'Add a comment...',
+      barrierDismissible: !isLoadingBeds,
+      builder: (dCtx) => StatefulBuilder(builder: (context, setState) {
+        if (isSupervisorConfirmShift && isLoadingBeds && vacantBeds.isEmpty) {
+          BedService().getVacantBeds(locationId: provider.supervisorLocationId).then((beds) {
+            if (context.mounted) {
+              setState(() {
+                vacantBeds = beds;
+                isLoadingBeds = false;
+              });
+            }
+          }).catchError((e) {
+            if (context.mounted) {
+              setState(() => isLoadingBeds = false);
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+            }
+          });
+        }
+
+        return AlertDialog(
+          backgroundColor: AppTheme.bgCard,
+          title: Text(title,
+              style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                  nextStatus == 'approved'
+                      ? 'This will apply the change immediately.'
+                      : 'This will move the request to the next step.',
+                  style: GoogleFonts.inter(
+                      color: AppTheme.textSecondary, fontSize: 13)),
+              const SizedBox(height: 12),
+              
+              if (isAdminApproveShift) ...[
+                DropdownButtonFormField<LocationModel>(
+                  value: selectedLocation,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  dropdownColor: AppTheme.bgCard,
+                  decoration: const InputDecoration(
+                    labelText: 'Target Location',
+                    hintText: 'Select where the staff is moving',
+                  ),
+                  items: provider.locations.map((loc) {
+                    return DropdownMenuItem(value: loc, child: Text(loc.name));
+                  }).toList(),
+                  onChanged: (val) => setState(() => selectedLocation = val),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              if (isSupervisorConfirmShift) ...[
+                if (isLoadingBeds)
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else
+                  DropdownButtonFormField<BedModel>(
+                    value: selectedBed,
+                    style: const TextStyle(color: AppTheme.textPrimary),
+                    dropdownColor: AppTheme.bgCard,
+                    decoration: const InputDecoration(
+                      labelText: 'Assign Vacant Bed',
+                      hintText: 'Select a vacant bed',
+                    ),
+                    items: vacantBeds.map((bed) {
+                      return DropdownMenuItem(value: bed, child: Text(bed.bedCode));
+                    }).toList(),
+                    onChanged: (val) => setState(() => selectedBed = val),
+                  ),
+                const SizedBox(height: 12),
+              ],
+
+              TextField(
+                controller: noteCtrl,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Note (optional)',
+                  hintText: 'Add a comment...',
+                ),
               ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: isLoadingBeds ? null : () => Navigator.pop(dCtx, false),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: isLoadingBeds
+                  ? null
+                  : () {
+                      if (isAdminApproveShift && selectedLocation == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            content: Text('Please select a target location.')));
+                        return;
+                      }
+                      if (isSupervisorConfirmShift && selectedBed == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            content: Text('Please assign a vacant bed.')));
+                        return;
+                      }
+                      Navigator.pop(dCtx, true);
+                    },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.success),
+              child: const Text('Confirm'),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dCtx, false),
-              child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(dCtx, true),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.success),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
+        );
+      }),
     );
+
     if (confirm == true && context.mounted) {
+      Map<String, dynamic>? updatedPayload;
+      if (isAdminApproveShift && selectedLocation != null) {
+        updatedPayload = {'target_location_id': selectedLocation!.id};
+      } else if (isSupervisorConfirmShift && selectedBed != null) {
+        updatedPayload = {'new_bed_id': selectedBed!.id};
+      }
+
       await provider.advanceStatus(change, nextStatus,
-          note: noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim());
+          note: noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim(),
+          updatedPayload: updatedPayload);
     }
   }
 
