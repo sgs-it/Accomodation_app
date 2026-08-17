@@ -576,11 +576,11 @@ class _StaffListScreenState extends State<StaffListScreen>
           Container(
             width: 48, height: 48,
             decoration: BoxDecoration(
-              color: AppTheme.secondary.withValues(alpha: 0.1),
+              color: AppTheme.accent.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Center(
-              child: Icon(Icons.supervisor_account, color: AppTheme.secondary),
+              child: Icon(Icons.supervisor_account, color: AppTheme.accent),
             ),
           ),
           const SizedBox(width: 16),
@@ -603,13 +603,13 @@ class _StaffListScreenState extends State<StaffListScreen>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppTheme.secondary.withValues(alpha: 0.1),
+                    color: AppTheme.accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     'SUPERVISOR • $location',
                     style: GoogleFonts.inter(
-                      color: AppTheme.secondary,
+                      color: AppTheme.accent,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),

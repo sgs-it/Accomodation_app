@@ -543,7 +543,7 @@ class _RequestCard extends StatelessWidget {
     bool isLoadingBeds = isSupervisorConfirmShift;
     List<BedModel> vacantBeds = [];
 
-    final confirm = await showDialog<bool>(
+    final confirm = await showDialog<dynamic>(
       context: context,
       barrierDismissible: !isLoadingBeds,
       builder: (dCtx) => StatefulBuilder(builder: (context, setState) {
