@@ -157,6 +157,14 @@ class _StaffListScreenState extends State<StaffListScreen>
                                     fontWeight: FontWeight.bold),
                               ),
                             ),
+                            IconButton(
+                              icon: const Icon(Icons.logout, color: Colors.white),
+                              tooltip: 'Logout',
+                              onPressed: () async {
+                                await Supabase.instance.client.auth.signOut();
+                                if (context.mounted) context.go('/login');
+                              },
+                            ),
                           ],
                         ),
                       ],

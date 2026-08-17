@@ -403,20 +403,8 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
       return;
     }
 
-    // Fetch vacant beds
-    List<BedModel> vacantBeds = [];
-    try {
-      vacantBeds = await BedService().getVacantBeds();
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading beds: $e'), backgroundColor: AppTheme.danger),
-      );
-      return;
-    }
-
     final reasonCtrl = TextEditingController();
-    BedModel? selectedBed;
+    final locationCtrl = TextEditingController();
 
     await showModalBottomSheet(
       context: context,
@@ -457,29 +445,14 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
                     color: AppTheme.textSecondary, fontSize: 13)),
             const SizedBox(height: 24),
 
-            StatefulBuilder(
-              builder: (context, setState) {
-                return DropdownButtonFormField<BedModel>(
-                  value: selectedBed,
-                  style: const TextStyle(color: AppTheme.textPrimary),
-                  dropdownColor: AppTheme.bgCard,
-                  decoration: const InputDecoration(
-                    labelText: 'Requested Vacant Bed',
-                    prefixIcon: Icon(Icons.bed_outlined, color: AppTheme.textMuted),
-                  ),
-                  items: vacantBeds.map((bed) {
-                    return DropdownMenuItem<BedModel>(
-                      value: bed,
-                      child: Text(bed.bedCode),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    setState(() {
-                      selectedBed = val;
-                    });
-                  },
-                );
-              }
+            TextField(
+              controller: locationCtrl,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Requested Place/Location',
+                hintText: 'E.g., Building A, Room 102',
+                prefixIcon: Icon(Icons.location_on_outlined, color: AppTheme.textMuted),
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -500,16 +473,14 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  if (reasonCtrl.text.trim().isEmpty || selectedBed == null) return;
+                  if (reasonCtrl.text.trim().isEmpty || locationCtrl.text.trim().isEmpty) return;
                   Navigator.pop(ctx);
 
                   final payload = <String, dynamic>{
                     'staff_name': staffRecord['name'],
                     'staff_id': staffRecord['staff_id'],
                     'reason': reasonCtrl.text.trim(),
-                    'requested_room': selectedBed!.bedCode,
-                    'new_bed_id': selectedBed!.id,
-                    'target_location_id': selectedBed!.locationId,
+                    'requested_room': locationCtrl.text.trim(),
                     'old_room': staffRecord['bed_assignments'] != null && (staffRecord['bed_assignments'] as List).isNotEmpty
                         ? ((staffRecord['bed_assignments'] as List).first as Map)['bed']['bed_code']
                         : null,

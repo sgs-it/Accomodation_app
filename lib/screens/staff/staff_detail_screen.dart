@@ -91,14 +91,14 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
 
     if (_loading) {
       return const Scaffold(
-        backgroundColor: AppTheme.bgDark,
-        body: Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+        backgroundColor: Color(0xFFF8FAFC),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6))),
       );
     }
 
     if (_staff == null) {
       return Scaffold(
-        backgroundColor: AppTheme.bgDark,
+        backgroundColor: const Color(0xFFF8FAFC),
         appBar: AppBar(leading: BackButton(onPressed: () => context.go('/staff'))),
         body: const Center(child: Text('Staff not found')),
       );
@@ -112,21 +112,30 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
       return parts.map((w) => w[0].toUpperCase()).join();
     }
     final initials = getInitials(staff.name);
-    final statusColor = AppTheme.staffStatusColor(staff.status);
+    
+    // Status color
+    Color statusColor = const Color(0xFF10B981); // Green
+    if (staff.status == 'On Leave') {
+      statusColor = const Color(0xFFF59E0B); // Amber
+    } else if (staff.status == 'Inactive') {
+      statusColor = const Color(0xFFEF4444); // Red
+    }
 
     return Scaffold(
-      backgroundColor: AppTheme.bgDark,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
+        backgroundColor: const Color(0xFF8B5CF6),
+        iconTheme: const IconThemeData(color: Colors.white),
         leading: BackButton(
-            onPressed: () => context.go('/staff'), color: AppTheme.textSecondary),
+            onPressed: () => context.go('/staff'), color: Colors.white),
         title: Text('Staff Profile',
             style: GoogleFonts.inter(
-                color: AppTheme.textPrimary, fontWeight: FontWeight.w700)),
+                color: Colors.white, fontWeight: FontWeight.w700)),
         actions: [
           if (isAdmin)
             PopupMenuButton<String>(
-              color: AppTheme.bgCard,
-              icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary),
+              color: Colors.white,
+              icon: const Icon(Icons.more_vert, color: Colors.white),
               onSelected: (val) async {
                 if (val == 'leave') {
                   await _staffService.markOnLeave(staff.id);
@@ -142,51 +151,67 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
                 PopupMenuItem(
                   value: 'edit',
                   child: Text('Edit Details',
-                      style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+                      style: GoogleFonts.inter(color: Colors.black87)),
                 ),
                 if (staff.status == 'Active')
                   PopupMenuItem(
                     value: 'leave',
                     child: Text('Mark On Leave',
-                        style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+                        style: GoogleFonts.inter(color: Colors.black87)),
                   ),
                 if (staff.status == 'On Leave')
                   PopupMenuItem(
                     value: 'returned',
                     child: Text('Mark Returned',
-                        style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+                        style: GoogleFonts.inter(color: Colors.black87)),
                   ),
               ],
             ),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
         children: [
           // Profile header
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.bgCard,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.divider),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+              border: Border.all(color: Colors.grey.shade100),
             ),
             child: Row(
               children: [
                 Container(
-                  width: 64,
-                  height: 64,
+                  width: 72,
+                  height: 72,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [AppTheme.primary, AppTheme.accent],
+                      colors: [Color(0xFF8B5CF6), Color(0xFF4C1D95)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Center(
                     child: Text(initials,
                         style: GoogleFonts.inter(
                             color: Colors.white,
-                            fontSize: 22,
+                            fontSize: 26,
                             fontWeight: FontWeight.bold)),
                   ),
                 ),
@@ -197,13 +222,13 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
                     children: [
                       Text(staff.name,
                           style: GoogleFonts.inter(
-                              color: AppTheme.textPrimary,
+                              color: Colors.black87,
                               fontSize: 18,
                               fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       Text('ID: ${staff.staffId}',
                           style: GoogleFonts.inter(
-                              color: AppTheme.textMuted, fontSize: 13)),
+                              color: Colors.black54, fontSize: 13, fontWeight: FontWeight.w500)),
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -224,12 +249,12 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: AppTheme.primary.withValues(alpha: 0.12),
+                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text('Supervisor',
                                   style: GoogleFonts.inter(
-                                      color: AppTheme.primary,
+                                      color: const Color(0xFF8B5CF6),
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700)),
                             ),
@@ -242,7 +267,7 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
           // Details
           _InfoCard(children: [
@@ -254,26 +279,33 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
             if (_currentBed != null)
               _InfoRow(icon: Icons.bed_rounded, label: 'Current Bed', value: _currentBed!),
           ]),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
           // Shift history
           Text('Shift History',
               style: GoogleFonts.inter(
-                  color: AppTheme.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
+                  color: Colors.black87,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
           if (_shifts.isEmpty)
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppTheme.bgCard,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.divider),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: Border.all(color: Colors.grey.shade100),
               ),
               child: Center(
                 child: Text('No shift history',
-                    style: GoogleFonts.inter(color: AppTheme.textMuted)),
+                    style: GoogleFonts.inter(color: Colors.black54)),
               ),
             )
           else
@@ -294,43 +326,43 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
       context: ctx,
       builder: (dCtx) => StatefulBuilder(
         builder: (dCtx, setS) => AlertDialog(
-          backgroundColor: AppTheme.bgCard,
+          backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text('Edit Staff',
-              style: GoogleFonts.inter(color: AppTheme.textPrimary)),
+              style: GoogleFonts.inter(color: Colors.black87)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  style: const TextStyle(color: AppTheme.textPrimary),
+                  style: const TextStyle(color: Colors.black87),
                   decoration: const InputDecoration(labelText: 'Name'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: staffIdCtrl,
-                  style: const TextStyle(color: AppTheme.textPrimary),
+                  style: const TextStyle(color: Colors.black87),
                   decoration: const InputDecoration(labelText: 'Staff ID'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: phoneCtrl,
                   keyboardType: TextInputType.phone,
-                  style: const TextStyle(color: AppTheme.textPrimary),
+                  style: const TextStyle(color: Colors.black87),
                   decoration: const InputDecoration(labelText: 'Phone (optional)'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: nationalityCtrl,
-                  style: const TextStyle(color: AppTheme.textPrimary),
+                  style: const TextStyle(color: Colors.black87),
                   decoration: const InputDecoration(labelText: 'Nationality (optional)'),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: status,
-                  dropdownColor: AppTheme.bgCard,
-                  style: const TextStyle(color: AppTheme.textPrimary),
+                  dropdownColor: Colors.white,
+                  style: const TextStyle(color: Colors.black87),
                   decoration: const InputDecoration(labelText: 'Status'),
                   items: const [
                     DropdownMenuItem(value: 'Active', child: Text('Active')),
@@ -346,7 +378,7 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
             TextButton(
               onPressed: () => Navigator.pop(dCtx),
               child: Text('Cancel',
-                  style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+                  style: GoogleFonts.inter(color: Colors.black54)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -372,6 +404,11 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
                   }
                 }
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B5CF6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
               child: const Text('Save'),
             ),
           ],
@@ -390,13 +427,20 @@ class _InfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.bgCard,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Column(
         children: children
-            .expand((w) => [w, const Divider(color: AppTheme.divider, height: 16)])
+            .expand((w) => [w, Divider(color: Colors.grey.shade200, height: 24)])
             .toList()
           ..removeLast(),
       ),
@@ -414,15 +458,15 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: AppTheme.primary, size: 16),
-        const SizedBox(width: 10),
+        Icon(icon, color: const Color(0xFF8B5CF6), size: 18),
+        const SizedBox(width: 12),
         Text('$label: ',
-            style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 13)),
+            style: GoogleFonts.inter(color: Colors.black54, fontSize: 13, fontWeight: FontWeight.w500)),
         Expanded(
           child: Text(value,
               style: GoogleFonts.inter(
-                  color: AppTheme.textPrimary,
-                  fontSize: 13,
+                  color: Colors.black87,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600)),
         ),
       ],
@@ -437,25 +481,31 @@ class _ShiftHistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.bgCard,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.1),
-
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.swap_horiz_rounded, color: AppTheme.primary, size: 16),
+            child: const Icon(Icons.swap_horiz_rounded, color: Color(0xFF8B5CF6), size: 18),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -463,20 +513,20 @@ class _ShiftHistoryTile extends StatelessWidget {
                 Text(
                   '${shift.fromBedCode ?? "–"} → ${shift.toBedCode ?? "–"}',
                   style: GoogleFonts.inter(
-                      color: AppTheme.textPrimary,
-                      fontSize: 13,
+                      color: Colors.black87,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600),
                 ),
                 if (shift.reason != null && shift.reason!.isNotEmpty)
                   Text(shift.reason!,
                       style: GoogleFonts.inter(
-                          color: AppTheme.textSecondary, fontSize: 11)),
+                          color: Colors.black54, fontSize: 12)),
               ],
             ),
           ),
           Text(
             DateFormat('dd MMM yy').format(shift.shiftDate),
-            style: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 11),
+            style: GoogleFonts.inter(color: Colors.black54, fontSize: 11, fontWeight: FontWeight.w500),
           ),
         ],
       ),
