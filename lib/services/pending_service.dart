@@ -139,7 +139,7 @@ class PendingService {
       final data = await _client
           .from('pending_changes')
           .select('id, payload, status')
-          .inFilter('status', ['pending_supervisor', 'pending_arrival']);
+          .inFilter('status', ['pending_supervisor', 'pending_arrival', 'pending_target_supervisor']);
 
       int count = 0;
       for (var row in data) {

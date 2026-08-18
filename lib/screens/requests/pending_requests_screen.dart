@@ -158,7 +158,7 @@ class _RequestsList extends StatelessWidget {
     final all = context.watch<AppProvider>().pendingChanges;
     final list = all.where((c) {
       if (status == 'pending') {
-        return c.status == 'pending' || c.status == 'pending_supervisor' || c.status == 'pending_arrival';
+        return c.status == 'pending' || c.status == 'pending_supervisor' || c.status == 'pending_arrival' || c.status == 'pending_target_supervisor';
       }
       return c.status == status;
     }).toList();
@@ -482,11 +482,12 @@ class _RequestCard extends StatelessWidget {
             final isCurrentSupervisor = provider.isSupervisor && targetStaff?.currentLocationId == provider.supervisorLocationId;
             final isTargetSupervisor = provider.isSupervisor && change.payload['target_location_id'] == provider.supervisorLocationId;
             
+            final canTargetSupervisorApprove = change.status == 'pending_target_supervisor' && isTargetSupervisor;
             final canSupervisorApprove = change.status == 'pending_supervisor' && isCurrentSupervisor;
             final canAdminApprove = change.status == 'pending' && provider.isAdmin;
             final canSupervisorConfirm = change.status == 'pending_arrival' && isTargetSupervisor;
 
-            if (canSupervisorApprove || canAdminApprove || canSupervisorConfirm) {
+            if (canTargetSupervisorApprove || canSupervisorApprove || canAdminApprove || canSupervisorConfirm) {
               return Padding(
                 padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
                 child: Row(
@@ -506,7 +507,9 @@ class _RequestCard extends StatelessWidget {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          if (canSupervisorApprove) {
+                          if (canTargetSupervisorApprove) {
+                            _advance(context, provider, 'pending', 'Approve & Assign Bed', isTargetSupervisorSelectBed: true);
+                          } else if (canSupervisorApprove) {
                             _advance(context, provider, 'pending', 'Approve Request');
                           } else if (canAdminApprove) {
                             final isShift = change.changeType == 'shift_request';
@@ -536,18 +539,18 @@ class _RequestCard extends StatelessWidget {
 
   Future<void> _advance(
       BuildContext context, AppProvider provider, String nextStatus, String title,
-      {bool isAdminApproveShift = false, bool isSupervisorConfirmShift = false}) async {
+      {bool isAdminApproveShift = false, bool isSupervisorConfirmShift = false, bool isTargetSupervisorSelectBed = false}) async {
     final noteCtrl = TextEditingController();
     LocationModel? selectedLocation;
     BedModel? selectedBed;
-    bool isLoadingBeds = isSupervisorConfirmShift;
+    bool isLoadingBeds = isTargetSupervisorSelectBed;
     List<BedModel> vacantBeds = [];
 
     final confirm = await showDialog<dynamic>(
       context: context,
       barrierDismissible: !isLoadingBeds,
       builder: (dCtx) => StatefulBuilder(builder: (context, setState) {
-        if (isSupervisorConfirmShift && isLoadingBeds && vacantBeds.isEmpty) {
+        if (isTargetSupervisorSelectBed && isLoadingBeds && vacantBeds.isEmpty) {
           BedService().getVacantBeds(locationId: provider.supervisorLocationId).then((beds) {
             if (context.mounted) {
               setState(() {
@@ -578,7 +581,7 @@ class _RequestCard extends StatelessWidget {
                       color: AppTheme.textSecondary, fontSize: 13)),
               const SizedBox(height: 12),
               
-              if (isSupervisorConfirmShift) ...[
+              if (isTargetSupervisorSelectBed) ...[
                 if (isLoadingBeds)
                   const Padding(
                     padding: EdgeInsets.all(16.0),
@@ -619,7 +622,7 @@ class _RequestCard extends StatelessWidget {
               onPressed: isLoadingBeds
                   ? null
                   : () {
-                      if (isSupervisorConfirmShift && selectedBed == null) {
+                      if (isTargetSupervisorSelectBed && selectedBed == null) {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                           content: Text('Please select a bed to assign'),
                           backgroundColor: AppTheme.danger,
@@ -632,8 +635,9 @@ class _RequestCard extends StatelessWidget {
                       if (isAdminApproveShift) {
                         // Keep target_location_id from original payload, no need to update it here
                       }
-                      if (isSupervisorConfirmShift && selectedBed != null) {
+                      if (isTargetSupervisorSelectBed && selectedBed != null) {
                         payloadUpdates['new_bed_id'] = selectedBed!.id;
+                        payloadUpdates['new_bed'] = selectedBed!.bedCode;
                       }
 
                       Navigator.pop(dCtx, {'note': note.isEmpty ? null : note, 'payloadUpdates': payloadUpdates});

@@ -498,56 +498,86 @@ class _StaffListScreenState extends State<StaffListScreen>
   Widget _buildManagementTab() {
     final provider = context.watch<AppProvider>();
     final isAdmin = provider.isAdmin;
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     
     if (_loading) return const Center(child: CircularProgressIndicator());
     
     if (isAdmin && _admins.isEmpty && _supervisors.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.admin_panel_settings_outlined, color: AppTheme.textMuted, size: 56),
-            const SizedBox(height: 16),
-            Text('No Management Accounts',
-                style: GoogleFonts.inter(
-                    color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-          ],
+      return RefreshIndicator(
+        onRefresh: _load,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.7,
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.admin_panel_settings_outlined, color: AppTheme.textMuted, size: 56),
+                const SizedBox(height: 16),
+                Text('No Management Accounts',
+                    style: GoogleFonts.inter(
+                        color: Colors.black87, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
         ),
       );
     } else if (!isAdmin && _supervisors.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.supervisor_account_outlined, color: AppTheme.textMuted, size: 56),
-            const SizedBox(height: 16),
-            Text('No Supervisors',
-                style: GoogleFonts.inter(
-                    color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-          ],
+      return RefreshIndicator(
+        onRefresh: _load,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.7,
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.supervisor_account_outlined, color: AppTheme.textMuted, size: 56),
+                const SizedBox(height: 16),
+                Text('No Supervisors',
+                    style: GoogleFonts.inter(
+                        color: Colors.black87, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
         ),
       );
     }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
-      children: [
-        if (isAdmin && _admins.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text('Admins', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary)),
-          ),
-          ..._admins.map((admin) => _buildAdminCard(admin)),
-          const SizedBox(height: 24),
+    final sortedSupervisors = List<Map<String, dynamic>>.from(_supervisors);
+    if (!isAdmin) {
+      sortedSupervisors.sort((a, b) {
+        if (a['id'] == currentUserId) return -1;
+        if (b['id'] == currentUserId) return 1;
+        return (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString());
+      });
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+        children: [
+          if (isAdmin && _admins.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text('Admins', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
+            ),
+            ..._admins.map((admin) => _buildAdminCard(admin)),
+            const SizedBox(height: 24),
+          ],
+          if (sortedSupervisors.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text('Supervisors', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
+            ),
+            ...sortedSupervisors.map((supervisor) => _buildSupervisorCard(supervisor)),
+          ]
         ],
-        if (_supervisors.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text('Supervisors', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary)),
-          ),
-          ..._supervisors.map((supervisor) => _buildSupervisorCard(supervisor)),
-        ]
-      ],
+      ),
     );
   }
 
