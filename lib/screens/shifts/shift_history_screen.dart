@@ -508,7 +508,7 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
                       targetTable: 'staff',
                       targetId: staffRecord['id'] as String?,
                       payload: payload,
-                      initialStatus: 'pending_target_supervisor', // targets the new location's supervisor
+                      initialStatus: 'pending', // Use 'pending' to pass DB constraint
                     );
                     await provider.loadPendingChanges();
                     _load();

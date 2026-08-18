@@ -155,10 +155,26 @@ class _RequestsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final all = context.watch<AppProvider>().pendingChanges;
+    final provider = context.watch<AppProvider>();
+    final all = provider.pendingChanges;
     final list = all.where((c) {
+      // Role-based filtering for shift requests
+      if (c.changeType == 'shift_request') {
+        final hasBed = c.payload['new_bed_id'] != null;
+        
+        if (provider.isAdmin) {
+          // Admin shouldn't see it if it's pending target supervisor (no bed assigned yet)
+          if (c.status == 'pending' && !hasBed) return false;
+        } else if (provider.isSupervisor) {
+          // Supervisor only sees it if it targets their location
+          if (c.payload['target_location_id'] != provider.supervisorLocationId) return false;
+          // Supervisor shouldn't see it in pending if they already assigned a bed (waiting for admin)
+          if (c.status == 'pending' && hasBed) return false;
+        }
+      }
+
       if (status == 'pending') {
-        return c.status == 'pending' || c.status == 'pending_supervisor' || c.status == 'pending_arrival' || c.status == 'pending_target_supervisor';
+        return c.status == 'pending' || c.status == 'pending_supervisor' || c.status == 'pending_arrival';
       }
       return c.status == status;
     }).toList();
@@ -482,9 +498,9 @@ class _RequestCard extends StatelessWidget {
             final isCurrentSupervisor = provider.isSupervisor && targetStaff?.currentLocationId == provider.supervisorLocationId;
             final isTargetSupervisor = provider.isSupervisor && change.payload['target_location_id'] == provider.supervisorLocationId;
             
-            final canTargetSupervisorApprove = change.status == 'pending_target_supervisor' && isTargetSupervisor;
-            final canSupervisorApprove = change.status == 'pending_supervisor' && isCurrentSupervisor;
-            final canAdminApprove = change.status == 'pending' && provider.isAdmin;
+            final canTargetSupervisorApprove = change.status == 'pending' && isTargetSupervisor && change.changeType == 'shift_request' && change.payload['new_bed_id'] == null;
+            final canSupervisorApprove = change.status == 'pending' && isCurrentSupervisor && change.changeType != 'shift_request';
+            final canAdminApprove = change.status == 'pending' && provider.isAdmin && (change.changeType != 'shift_request' || change.payload['new_bed_id'] != null);
             final canSupervisorConfirm = change.status == 'pending_arrival' && isTargetSupervisor;
 
             if (canTargetSupervisorApprove || canSupervisorApprove || canAdminApprove || canSupervisorConfirm) {

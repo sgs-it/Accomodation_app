@@ -130,22 +130,43 @@ class PendingService {
     final locId = roleResp['location_id'];
 
     if (role == 'admin') {
-      final data = await _client.from('pending_changes').select('id').inFilter(
+      final data = await _client.from('pending_changes').select('id, payload, status, change_type').inFilter(
         'status',
         ['pending', 'pending_supervisor', 'pending_arrival'],
       );
-      return data.length;
+      
+      int count = 0;
+      for (var row in data) {
+        final changeType = row['change_type'] as String?;
+        final payload = row['payload'] as Map<String, dynamic>?;
+        // Don't count shift requests that are still waiting for target supervisor to assign a bed
+        if (row['status'] == 'pending' && changeType == 'shift_request' && (payload == null || payload['new_bed_id'] == null)) {
+          continue;
+        }
+        count++;
+      }
+      return count;
     } else if (role == 'supervisor' && locId != null) {
       final data = await _client
           .from('pending_changes')
-          .select('id, payload, status')
-          .inFilter('status', ['pending_supervisor', 'pending_arrival', 'pending_target_supervisor']);
+          .select('id, payload, status, change_type')
+          .inFilter('status', ['pending', 'pending_supervisor', 'pending_arrival']);
 
       int count = 0;
       for (var row in data) {
         final payload = row['payload'] as Map<String, dynamic>?;
+        final changeType = row['change_type'] as String?;
+        final status = row['status'] as String?;
+        
         if (payload != null && payload['target_location_id'] == locId) {
-          count++;
+          // If it's a shift request waiting for target supervisor, only count it if new_bed_id is null
+          if (changeType == 'shift_request' && status == 'pending') {
+            if (payload['new_bed_id'] == null) {
+              count++;
+            }
+          } else {
+            count++;
+          }
         }
       }
       return count;
