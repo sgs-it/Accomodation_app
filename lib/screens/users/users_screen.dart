@@ -56,7 +56,7 @@ class _UsersScreenState extends State<UsersScreen> {
     try {
       final rooms = await RoomService().getByLocation(loc.id);
       setState(() {
-        _rooms = rooms;
+        _rooms = rooms.where((r) => (r.actualBedsCount - r.occupiedCount) > 0).toList();
       });
     } catch (e) {
       setState(() => _message = '✗ Error loading rooms: $e');
@@ -304,7 +304,7 @@ class _UsersScreenState extends State<UsersScreen> {
                   dropdownColor: AppTheme.bgCard,
                   style: const TextStyle(color: AppTheme.textPrimary),
                   decoration: const InputDecoration(
-                    labelText: 'Select Room',
+                    labelText: 'Select Room (Available)',
                     prefixIcon: Icon(Icons.meeting_room_outlined, color: AppTheme.textMuted),
                   ),
                   items: _rooms.map((room) {
