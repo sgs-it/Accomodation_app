@@ -320,6 +320,7 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
     final staffIdCtrl = TextEditingController(text: staff.staffId);
     final phoneCtrl = TextEditingController(text: staff.phone ?? '');
     final nationalityCtrl = TextEditingController(text: staff.nationality ?? '');
+    final passwordCtrl = TextEditingController();
     String status = staff.status;
 
     showDialog(
@@ -327,9 +328,10 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
       builder: (dCtx) => StatefulBuilder(
         builder: (dCtx, setS) => AlertDialog(
           backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Edit Staff',
-              style: GoogleFonts.inter(color: Colors.black87)),
+          title: Text('Edit Staff Details',
+              style: GoogleFonts.inter(color: Colors.black87, fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -357,6 +359,12 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
                   controller: nationalityCtrl,
                   style: const TextStyle(color: Colors.black87),
                   decoration: const InputDecoration(labelText: 'Nationality (optional)'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: passwordCtrl,
+                  style: const TextStyle(color: Colors.black87),
+                  decoration: const InputDecoration(labelText: 'New Password (optional)', hintText: 'Leave empty to keep current'),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -388,13 +396,17 @@ class _StaffDetailScreenState extends State<StaffDetailScreen> {
 
                 Navigator.pop(dCtx);
                 try {
-                  await _staffService.update(staff.id, {
-                    'name': name,
-                    'staff_id': sId,
-                    'phone': phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
-                    'nationality': nationalityCtrl.text.trim().isEmpty ? null : nationalityCtrl.text.trim(),
-                    'status': status,
-                  });
+                  await _staffService.update(
+                    staff.id, 
+                    {
+                      'name': name,
+                      'staff_id': sId,
+                      'phone': phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                      'nationality': nationalityCtrl.text.trim().isEmpty ? null : nationalityCtrl.text.trim(),
+                      'status': status,
+                    },
+                    newPassword: passwordCtrl.text.trim().isEmpty ? null : passwordCtrl.text.trim(),
+                  );
                   await _load();
                 } catch (e) {
                   if (ctx.mounted) {

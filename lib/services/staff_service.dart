@@ -95,7 +95,32 @@ class StaffService {
     return createdStaff;
   }
 
-  Future<void> update(String id, Map<String, dynamic> updates) async {
+  Future<void> update(String id, Map<String, dynamic> updates, {String? newPassword}) async {
+    // Check if staff_id is being updated, or if newPassword is provided
+    if (updates.containsKey('staff_id') || (newPassword != null && newPassword.isNotEmpty)) {
+      // Get the auth_user_id for this staff
+      final staffResp = await _client.from('staff').select('auth_user_id, staff_id').eq('id', id).maybeSingle();
+      if (staffResp != null && staffResp['auth_user_id'] != null) {
+        String? newEmail;
+        if (updates.containsKey('staff_id') && updates['staff_id'] != staffResp['staff_id']) {
+          final clean = updates['staff_id'].toString().trim().replaceAll(RegExp(r'\s+'), '').toLowerCase();
+          newEmail = '$clean@staff.sgs.com';
+        }
+        
+        if (newEmail != null || (newPassword != null && newPassword.isNotEmpty)) {
+          try {
+            await _client.rpc('update_staff_auth', params: {
+              'target_user_id': staffResp['auth_user_id'],
+              'new_email': newEmail,
+              'new_password': newPassword,
+            });
+          } catch (e) {
+            print('Failed to update auth credentials: $e');
+          }
+        }
+      }
+    }
+    
     await _client.from('staff').update(updates).eq('id', id);
   }
 
