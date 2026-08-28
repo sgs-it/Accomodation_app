@@ -236,7 +236,10 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
       itemCount: shiftReqs.length,
-      itemBuilder: (ctx, i) => _MyRequestCard(change: shiftReqs[i]),
+      itemBuilder: (ctx, i) => _MyRequestCard(
+        change: shiftReqs[i],
+        onCancelled: _load,
+      ),
     );
   }
 
@@ -649,7 +652,8 @@ class _EmptyShifts extends StatelessWidget {
 // ── My request card (staff view) ───────────────────────────────────────────────
 class _MyRequestCard extends StatelessWidget {
   final PendingChange change;
-  const _MyRequestCard({required this.change});
+  final VoidCallback? onCancelled;
+  const _MyRequestCard({required this.change, this.onCancelled});
 
   Color get _statusColor {
     switch (change.status) {
@@ -739,30 +743,66 @@ class _MyRequestCard extends StatelessWidget {
                 if (change.adminNote != null && change.adminNote!.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppTheme.bgDark,
+                      color: Colors.red.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.1)),
                     ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          change.status == 'approved'
-                              ? Icons.check_circle_outline
-                              : Icons.info_outline,
-                          color: _statusColor, size: 14,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Admin: ${change.adminNote}',
-                            style: GoogleFonts.inter(
-                                color: AppTheme.textSecondary,
-                                fontSize: 12,
-                                fontStyle: FontStyle.italic),
+                    child: Text('Admin Note: ${change.adminNote}',
+                        style: GoogleFonts.inter(
+                            color: Colors.red.shade700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500)),
+                  ),
+                ],
+                // Cancellation button if not yet processed
+                if (change.status == 'pending' && change.payload['new_bed_id'] == null) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (c) => AlertDialog(
+                            backgroundColor: Colors.white,
+                            title: Text('Cancel Request?', style: GoogleFonts.inter(color: Colors.black87)),
+                            content: Text('Are you sure you want to cancel this shift request?', style: GoogleFonts.inter(color: Colors.black54)),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(c, false),
+                                child: Text('No', style: GoogleFonts.inter(color: Colors.black54)),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                onPressed: () => Navigator.pop(c, true),
+                                child: const Text('Yes, Cancel'),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                        );
+                        if (confirm == true) {
+                          try {
+                            await PendingService().deleteRequest(change.id);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request cancelled successfully')));
+                              if (onCancelled != null) onCancelled!();
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                            }
+                          }
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text('Cancel Request', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ],
