@@ -365,16 +365,16 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
 
   void _showAssignDialog(BuildContext ctx, BedModel bed) async {
     final unassigned = await _staffService.getUnassigned();
-    if (unassigned.isEmpty) {
-      if (ctx.mounted) {
-        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-            content: Text('No unassigned active staff available')));
-      }
-      return;
-    }
 
-    StaffModel? selected;
+    StaffModel? selectedUnassigned;
     String statusToSet = 'FULL';
+
+    // Form fields for creating a new staff account
+    final staffIdCtrl = TextEditingController();
+    final nameCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController(text: bed.bedCode);
+    bool isCreatingNew = unassigned.isEmpty;
+    bool isSaving = false;
 
     if (!ctx.mounted) return;
     showDialog(
@@ -383,91 +383,231 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
         builder: (dCtx, setS) => AlertDialog(
           backgroundColor: AppTheme.bgCard,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Assign Staff to ${bed.bedCode}',
-              style: GoogleFonts.inter(color: AppTheme.textPrimary, fontSize: 15)),
-          content: Column(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField<StaffModel>(
-                isExpanded: true,
-                dropdownColor: AppTheme.bgCard,
-                style: const TextStyle(color: AppTheme.textPrimary),
-                decoration: const InputDecoration(labelText: 'Select Staff'),
-                items: unassigned
-                    .map((s) => DropdownMenuItem(
-                          value: s,
-                          child: Text('${s.name} (${s.staffId})',
-                              overflow: TextOverflow.ellipsis,
+              Text('Assign Staff to ${bed.bedCode}',
+                  style: GoogleFonts.inter(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              // Segmented Toggle Button
+              Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.bgCardLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.all(3),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setS(() => isCreatingNew = false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: !isCreatingNew ? AppTheme.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Unassigned Staff (${unassigned.length})',
                               style: GoogleFonts.inter(
-                                  color: AppTheme.textPrimary, fontSize: 13)),
-                        ))
-                    .toList(),
-                onChanged: (v) => setS(() => selected = v),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: statusToSet,
-                dropdownColor: AppTheme.bgCard,
-                style: const TextStyle(color: AppTheme.textPrimary),
-                decoration: const InputDecoration(labelText: 'Status'),
-                items: const [
-                  DropdownMenuItem(value: 'FULL', child: Text('FULL')),
-                  DropdownMenuItem(value: 'VACATION', child: Text('VACATION')),
-                ],
-                onChanged: (v) => setS(() => statusToSet = v!),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: !isCreatingNew ? Colors.white : AppTheme.textMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setS(() => isCreatingNew = true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isCreatingNew ? AppTheme.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '+ Create New Staff',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isCreatingNew ? Colors.white : AppTheme.textMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!isCreatingNew) ...[
+                  if (unassigned.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Text(
+                        'No unassigned active staff available.\nSwitch to "+ Create New Staff" to register a new account.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 13),
+                      ),
+                    )
+                  else ...[
+                    DropdownButtonFormField<StaffModel>(
+                      isExpanded: true,
+                      dropdownColor: AppTheme.bgCard,
+                      style: const TextStyle(color: AppTheme.textPrimary),
+                      decoration: const InputDecoration(labelText: 'Select Unassigned Staff'),
+                      items: unassigned
+                          .map((s) => DropdownMenuItem(
+                                value: s,
+                                child: Text('${s.name} (${s.staffId})',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(color: AppTheme.textPrimary, fontSize: 13)),
+                              ))
+                          .toList(),
+                      onChanged: (v) => setS(() => selectedUnassigned = v),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: statusToSet,
+                      dropdownColor: AppTheme.bgCard,
+                      style: const TextStyle(color: AppTheme.textPrimary),
+                      decoration: const InputDecoration(labelText: 'Status'),
+                      items: const [
+                        DropdownMenuItem(value: 'FULL', child: Text('FULL')),
+                        DropdownMenuItem(value: 'VACATION', child: Text('VACATION')),
+                      ],
+                      onChanged: (v) => setS(() => statusToSet = v!),
+                    ),
+                  ],
+                ] else ...[
+                  TextField(
+                    controller: staffIdCtrl,
+                    style: const TextStyle(color: AppTheme.textPrimary),
+                    decoration: const InputDecoration(
+                      labelText: 'Staff ID / Occupant ID',
+                      hintText: 'e.g. 1045',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: nameCtrl,
+                    style: const TextStyle(color: AppTheme.textPrimary),
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name',
+                      hintText: 'e.g. John Doe',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: passwordCtrl,
+                    style: const TextStyle(color: AppTheme.textPrimary),
+                    decoration: const InputDecoration(
+                      labelText: 'Initial Password',
+                      helperText: 'Default is Bed Code',
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(dCtx),
+              onPressed: isSaving ? null : () => Navigator.pop(dCtx),
               child: Text('Cancel', style: GoogleFonts.inter(color: AppTheme.textSecondary)),
             ),
             ElevatedButton(
-              onPressed: selected == null
+              onPressed: isSaving
                   ? null
-                  : () async {
-                      Navigator.pop(dCtx);
-                      try {
-                        final oldBedId = bed.id;
-                        await _bedService.assignStaff(
-                          bedId: bed.id,
-                          staffId: selected!.id,
-                          bedStatus: statusToSet,
-                        );
-                        // Log shift
-                        await ShiftService().logShift(
-                          staffId: selected!.id,
-                          fromBedId: null,
-                          toBedId: oldBedId,
-                          shiftDate: DateTime.now(),
-                          reason: 'Initial assignment',
-                        );
-                        if (statusToSet == 'VACATION') {
-                          await _staffService.update(selected!.id, {'status': 'On Leave'});
-                        }
-                        
-                        // Update password to new bed ID
-                        try {
-                          await AuthService().updatePassword(selected!.id, bed.bedCode);
-                        } catch (e) {
-                          debugPrint('Failed to update password: $e');
-                          if (ctx.mounted) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(content: Text('Bed assigned, but password update failed: $e')));
+                  : (!isCreatingNew && selectedUnassigned == null)
+                      ? null
+                      : () async {
+                          if (isCreatingNew) {
+                            final sId = staffIdCtrl.text.trim();
+                            final name = nameCtrl.text.trim();
+                            final pass = passwordCtrl.text.trim();
+                            if (sId.isEmpty || name.isEmpty || pass.isEmpty) {
+                              ScaffoldMessenger.of(dCtx).showSnackBar(
+                                const SnackBar(content: Text('Please fill all fields for the new staff account')),
+                              );
+                              return;
+                            }
+                            setS(() => isSaving = true);
+                            try {
+                              await AuthService().createAccount(
+                                identifier: sId,
+                                displayName: name,
+                                password: pass,
+                                role: 'staff',
+                                selectedBedId: bed.id,
+                              );
+                              if (dCtx.mounted) Navigator.pop(dCtx);
+                              await _load();
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(content: Text('Staff account "$name" created and assigned to ${bed.bedCode}')),
+                                );
+                              }
+                            } catch (e) {
+                              setS(() => isSaving = false);
+                              if (dCtx.mounted) {
+                                ScaffoldMessenger.of(dCtx).showSnackBar(
+                                  SnackBar(content: Text('Error creating account: $e')),
+                                );
+                              }
+                            }
+                          } else {
+                            if (selectedUnassigned == null) return;
+                            setS(() => isSaving = true);
+                            try {
+                              final oldBedId = bed.id;
+                              await _bedService.assignStaff(
+                                bedId: bed.id,
+                                staffId: selectedUnassigned!.id,
+                                bedStatus: statusToSet,
+                              );
+                              await ShiftService().logShift(
+                                staffId: selectedUnassigned!.id,
+                                fromBedId: null,
+                                toBedId: oldBedId,
+                                shiftDate: DateTime.now(),
+                                reason: 'Initial assignment',
+                              );
+                              if (statusToSet == 'VACATION') {
+                                await _staffService.update(selectedUnassigned!.id, {'status': 'On Leave'});
+                              }
+                              try {
+                                await AuthService().updatePassword(selectedUnassigned!.id, bed.bedCode);
+                              } catch (e) {
+                                debugPrint('Failed to update password: $e');
+                              }
+                              if (dCtx.mounted) Navigator.pop(dCtx);
+                              await _load();
+                            } catch (e) {
+                              setS(() => isSaving = false);
+                              if (dCtx.mounted) {
+                                ScaffoldMessenger.of(dCtx).showSnackBar(
+                                  SnackBar(content: Text('Error assigning staff: $e')),
+                                );
+                              }
+                            }
                           }
-                        }
-                        
-                        await _load();
-                      } catch (e) {
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: Text('Error: $e')));
-                        }
-                      }
-                    },
+                        },
               style: ElevatedButton.styleFrom(minimumSize: Size.zero),
-              child: const Text('Assign'),
+              child: isSaving
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text(isCreatingNew ? 'Create & Assign' : 'Assign'),
             ),
           ],
         ),
