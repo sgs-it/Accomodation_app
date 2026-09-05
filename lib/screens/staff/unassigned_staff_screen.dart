@@ -295,7 +295,8 @@ class _UnassignedStaffScreenState extends State<UnassignedStaffScreen> {
       );
     }
 
-    final isAdmin = context.watch<AppProvider>().isAdmin;
+    final provider = context.watch<AppProvider>();
+    final canManage = provider.isAdmin || provider.isSupervisor;
 
     return RefreshIndicator(
       color: AppTheme.primary,
@@ -365,7 +366,7 @@ class _UnassignedStaffScreenState extends State<UnassignedStaffScreen> {
                       ],
                     ),
                   ),
-                  if (isAdmin)
+                  if (canManage)
                     ElevatedButton(
                       onPressed: () => _showAssignBedDialog(context, staff),
                       style: ElevatedButton.styleFrom(
@@ -377,7 +378,7 @@ class _UnassignedStaffScreenState extends State<UnassignedStaffScreen> {
                       ),
                       child: Text('Assign', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
                     ),
-                  if (!isAdmin)
+                  if (!canManage)
                     const Icon(Icons.arrow_forward_ios, size: 16, color: AppTheme.textMuted),
                 ],
               ),

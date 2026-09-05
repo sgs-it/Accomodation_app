@@ -58,7 +58,8 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
-    final isAdmin = provider.isAdmin;
+    final canManage = provider.isAdmin ||
+        (provider.isSupervisor && provider.supervisorLocationId == widget.locationId);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -119,7 +120,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                   ],
                                 ),
                               ),
-                              if (isAdmin)
+                              if (canManage)
                                 Container(
                                   decoration: const BoxDecoration(
                                     color: Colors.white,
@@ -182,7 +183,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                         else if (_beds.isEmpty)
                           _EmptyBeds(onAdd: () => _showAddBedDialog(context))
                         else
-                          _buildContent(context, isAdmin),
+                          _buildContent(context, canManage),
                       ],
                     ),
                   ),
@@ -195,7 +196,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     );
   }
 
-  Widget _buildContent(BuildContext context, bool isAdmin) {
+  Widget _buildContent(BuildContext context, bool canManage) {
     final vacantBeds = _beds.where((b) => b.isVacant).toList();
     final occupiedBeds = _beds.where((b) => b.isOccupied).toList();
 
@@ -217,8 +218,8 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
         else
           ...occupiedBeds.map((bed) => _StaffListTile(
                 bed: bed,
-                isAdmin: isAdmin,
-                onTap: () => _showBedActions(context, bed, isAdmin),
+                isAdmin: canManage,
+                onTap: () => _showBedActions(context, bed, canManage),
                 onEdit: () => _showEditBedDialog(context, bed),
               )),
 
@@ -236,15 +237,15 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
         else
           ...vacantBeds.map((bed) => _VacantBedTile(
                 bed: bed,
-                isAdmin: isAdmin,
-                onTap: () => _showBedActions(context, bed, isAdmin),
+                isAdmin: canManage,
+                onTap: () => _showBedActions(context, bed, canManage),
                 onEdit: () => _showEditBedDialog(context, bed),
               )),
       ],
     );
   }
 
-  void _showBedActions(BuildContext ctx, BedModel bed, bool isAdmin) {
+  void _showBedActions(BuildContext ctx, BedModel bed, bool canManage) {
     showModalBottomSheet(
       context: ctx,
       backgroundColor: AppTheme.bgCard,
@@ -289,7 +290,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
             const Divider(color: AppTheme.divider),
             const SizedBox(height: 8),
 
-            // Assign staff (viewer + admin can assign)
+            // Assign staff (viewer + admin + supervisor can assign)
             if (bed.isVacant)
               _ActionTile(
                 icon: Icons.person_add_rounded,
@@ -301,8 +302,8 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 },
               ),
 
-            // Mark on vacation (admin only)
-            if (isAdmin && bed.occupant != null && bed.status == 'FULL')
+            // Mark on vacation (admin & assigned supervisor)
+            if (canManage && bed.occupant != null && bed.status == 'FULL')
               _ActionTile(
                 icon: Icons.flight_takeoff_rounded,
                 label: 'Mark On Vacation',
@@ -315,8 +316,8 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 },
               ),
 
-            // Mark returned (admin only)
-            if (isAdmin && bed.status == 'VACATION')
+            // Mark returned (admin & assigned supervisor)
+            if (canManage && bed.status == 'VACATION')
               _ActionTile(
                 icon: Icons.flight_land_rounded,
                 label: 'Mark Returned',
@@ -331,8 +332,8 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 },
               ),
 
-            // Remove staff (admin only)
-            if (isAdmin && bed.isOccupied)
+            // Remove staff (admin & assigned supervisor)
+            if (canManage && bed.isOccupied)
               _ActionTile(
                 icon: Icons.person_remove_rounded,
                 label: 'Remove Staff',
@@ -344,8 +345,8 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 },
               ),
 
-            // Delete bed (admin only)
-            if (isAdmin && !bed.isOccupied)
+            // Delete bed (admin & assigned supervisor)
+            if (canManage && !bed.isOccupied)
               _ActionTile(
                 icon: Icons.delete_outline,
                 label: 'Delete Bed',

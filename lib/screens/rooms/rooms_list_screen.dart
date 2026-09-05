@@ -47,7 +47,8 @@ class _RoomsListScreenState extends State<RoomsListScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
-    final isAdmin = provider.isAdmin;
+    final canManage = provider.isAdmin ||
+        (provider.isSupervisor && provider.supervisorLocationId == widget.locationId);
     
     int totalCapacity = 0;
     int occupied = 0;
@@ -123,7 +124,7 @@ class _RoomsListScreenState extends State<RoomsListScreen> {
                                   ],
                                 ),
                               ),
-                              if (isAdmin)
+                              if (canManage)
                                 Container(
                                   decoration: const BoxDecoration(
                                     color: Colors.white,
@@ -177,7 +178,7 @@ class _RoomsListScreenState extends State<RoomsListScreen> {
                                 SkeletonCard()
                               ])
                             : _rooms.isEmpty
-                                ? _EmptyRooms(isAdmin: provider.isAdmin, onAdd: () => _showAddRoomDialog(context, provider))
+                                ? _EmptyRooms(isAdmin: canManage, onAdd: () => _showAddRoomDialog(context, provider))
                                 : ListView.builder(
                                     padding: EdgeInsets.zero,
                                     shrinkWrap: true,
@@ -186,7 +187,7 @@ class _RoomsListScreenState extends State<RoomsListScreen> {
                                     itemBuilder: (ctx, i) => _RoomCard(
                                       room: _rooms[i],
                                       onTap: () => context.go('/rooms/${widget.locationId}/${_rooms[i].id}'),
-                                      onEdit: isAdmin ? () => _showEditRoomDialog(context, _rooms[i], provider) : null,
+                                      onEdit: canManage ? () => _showEditRoomDialog(context, _rooms[i], provider) : null,
                                     ),
                                   ),
                       ],
