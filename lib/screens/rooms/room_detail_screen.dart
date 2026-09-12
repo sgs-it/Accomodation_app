@@ -59,7 +59,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
     final canManage = provider.isAdmin ||
-        (provider.isSupervisor && provider.supervisorLocationId == widget.locationId);
+        (provider.isSupervisor && provider.supervisorLocationIds.contains(widget.locationId));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),

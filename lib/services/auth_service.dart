@@ -33,29 +33,33 @@ class AuthService {
 
   Future<Map<String, dynamic>> getCurrentRoleWithLocation() async {
     final user = currentUser;
-    if (user == null) return {'role': UserRole.unknown, 'location_id': null};
+    if (user == null) return {'role': UserRole.unknown, 'location_ids': []};
 
     for (int i = 0; i < 3; i++) {
       final resp = await _client
           .from('user_roles')
-          .select('role, location_id')
+          .select('role, location_ids')
           .eq('user_id', user.id)
           .maybeSingle();
 
       if (resp != null) {
         final roleStr = resp['role'] as String?;
-        final locId = resp['location_id'] as String?;
+        final locIdsRaw = resp['location_ids'];
+        List<String> locIds = [];
+        if (locIdsRaw != null) {
+          locIds = (locIdsRaw as List).map((e) => e.toString()).toList();
+        }
         UserRole role = UserRole.unknown;
         if (roleStr == 'admin') role = UserRole.admin;
         if (roleStr == 'supervisor') role = UserRole.supervisor;
         if (roleStr == 'staff') role = UserRole.staff;
-        return {'role': role, 'location_id': locId};
+        return {'role': role, 'location_ids': locIds};
       }
       
       await Future.delayed(const Duration(milliseconds: 500));
     }
 
-    return {'role': UserRole.unknown, 'location_id': null};
+    return {'role': UserRole.unknown, 'location_ids': []};
   }
 
   Future<UserRole> getCurrentRole() async {
@@ -81,7 +85,7 @@ class AuthService {
     required String password,
     required String role,
     String? selectedBedId,
-    String? managedLocationId,
+    List<String>? managedLocationIds,
   }) async {
     final email = role == 'admin' ? identifier : resolveEmail(identifier);
 
@@ -113,8 +117,8 @@ class AuthService {
 
     try {
       final roleData = {'user_id': newUserId, 'role': role};
-      if (managedLocationId != null) {
-        roleData['location_id'] = managedLocationId;
+      if (managedLocationIds != null && managedLocationIds.isNotEmpty) {
+        roleData['location_ids'] = managedLocationIds;
       }
       
       await _client.from('user_roles').upsert(

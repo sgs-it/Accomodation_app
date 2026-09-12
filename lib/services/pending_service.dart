@@ -121,13 +121,13 @@ class PendingService {
 
     final roleResp = await _client
         .from('user_roles')
-        .select('role, location_id')
+        .select('role, location_ids')
         .eq('user_id', user.id)
         .maybeSingle();
     if (roleResp == null) return 0;
 
     final role = roleResp['role'];
-    final locId = roleResp['location_id'];
+    final locIds = (roleResp['location_ids'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
 
     if (role == 'admin') {
       final data = await _client.from('pending_changes').select('id, payload, status, change_type').inFilter(
@@ -146,7 +146,7 @@ class PendingService {
         count++;
       }
       return count;
-    } else if (role == 'supervisor' && locId != null) {
+    } else if (role == 'supervisor' && locIds.isNotEmpty) {
       final data = await _client
           .from('pending_changes')
           .select('id, payload, status, change_type')
@@ -158,7 +158,7 @@ class PendingService {
         final changeType = row['change_type'] as String?;
         final status = row['status'] as String?;
         
-        if (payload != null && payload['target_location_id'] == locId) {
+        if (payload != null && locIds.contains(payload['target_location_id'])) {
           // If it's a shift request waiting for target supervisor, only count it if new_bed_id is null
           if (changeType == 'shift_request' && status == 'pending') {
             if (payload['new_bed_id'] == null) {

@@ -167,7 +167,7 @@ class _RequestsList extends StatelessWidget {
           if (c.status == 'pending' && !hasBed) return false;
         } else if (provider.isSupervisor) {
           // Supervisor only sees it if it targets their location
-          if (c.payload['target_location_id'] != provider.supervisorLocationId) return false;
+          if (!provider.supervisorLocationIds.contains(c.payload['target_location_id'])) return false;
           // Supervisor shouldn't see it in pending if they already assigned a bed (waiting for admin)
           if (c.status == 'pending' && hasBed) return false;
         }
@@ -495,8 +495,8 @@ class _RequestCard extends StatelessWidget {
           // Admin and Supervisor action buttons
           Builder(builder: (ctx) {
             final targetStaff = provider.staff.where((s) => s.id == change.targetId).firstOrNull;
-            final isCurrentSupervisor = provider.isSupervisor && targetStaff?.currentLocationId == provider.supervisorLocationId;
-            final isTargetSupervisor = provider.isSupervisor && change.payload['target_location_id'] == provider.supervisorLocationId;
+            final isCurrentSupervisor = provider.isSupervisor && provider.supervisorLocationIds.contains(targetStaff?.currentLocationId);
+            final isTargetSupervisor = provider.isSupervisor && provider.supervisorLocationIds.contains(change.payload['target_location_id']);
             
             final canTargetSupervisorApprove = change.status == 'pending' && isTargetSupervisor && change.changeType == 'shift_request' && change.payload['new_bed_id'] == null;
             final canSupervisorApprove = change.status == 'pending' && isCurrentSupervisor && change.changeType != 'shift_request';
@@ -567,7 +567,7 @@ class _RequestCard extends StatelessWidget {
       barrierDismissible: !isLoadingBeds,
       builder: (dCtx) => StatefulBuilder(builder: (context, setState) {
         if (isTargetSupervisorSelectBed && isLoadingBeds && vacantBeds.isEmpty) {
-          BedService().getVacantBeds(locationId: provider.supervisorLocationId).then((beds) {
+          BedService().getVacantBeds(locationId: change.payload['target_location_id']).then((beds) {
             if (context.mounted) {
               setState(() {
                 vacantBeds = beds;

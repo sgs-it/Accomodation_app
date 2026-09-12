@@ -30,7 +30,7 @@ class AppProvider extends ChangeNotifier {
   List<ShiftHistoryModel> _shifts = [];
   List<PendingChange> _pending = [];
   UserRole _role = UserRole.unknown;
-  String? _supervisorLocationId;
+  List<String> _supervisorLocationIds = [];
   bool _loading = false;
   String? _error;
   // Current logged-in staff record (for staff role)
@@ -50,7 +50,7 @@ class AppProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isAdmin => _role == UserRole.admin;
   bool get isSupervisor => _role == UserRole.supervisor;
-  String? get supervisorLocationId => _supervisorLocationId;
+  List<String> get supervisorLocationIds => _supervisorLocationIds;
   bool get isStaff => _role == UserRole.staff;
   AuthService get authService => _authService;
   PendingService get pendingService => _pendingService;
@@ -92,7 +92,7 @@ class AppProvider extends ChangeNotifier {
     try {
       final roleData = await _authService.getCurrentRoleWithLocation();
       _role = roleData['role'] as UserRole;
-      _supervisorLocationId = roleData['location_id'] as String?;
+      _supervisorLocationIds = (roleData['location_ids'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
 
       // Setup push notifications
       if (!kIsWeb) {

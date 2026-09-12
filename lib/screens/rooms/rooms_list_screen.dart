@@ -48,7 +48,7 @@ class _RoomsListScreenState extends State<RoomsListScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
     final canManage = provider.isAdmin ||
-        (provider.isSupervisor && provider.supervisorLocationId == widget.locationId);
+        (provider.isSupervisor && provider.supervisorLocationIds.contains(widget.locationId));
     
     int totalCapacity = 0;
     int occupied = 0;

@@ -30,6 +30,7 @@ class _UsersScreenState extends State<UsersScreen> {
   LocationModel? _selectedLocation;
   RoomModel? _selectedRoom;
   BedModel? _selectedBed;
+  List<String> _managedLocationIds = [];
 
   List<RoomModel> _rooms = [];
   List<BedModel> _beds = [];
@@ -121,6 +122,11 @@ class _UsersScreenState extends State<UsersScreen> {
       return;
     }
 
+    if (_selectedRole == 'supervisor' && _managedLocationIds.isEmpty) {
+      setState(() => _message = '✗ Supervisors must have at least one managed location selected.');
+      return;
+    }
+
     setState(() { _loading = true; _message = null; });
     try {
       final provider = context.read<AppProvider>();
@@ -130,7 +136,7 @@ class _UsersScreenState extends State<UsersScreen> {
         password:    pass,
         role:        _selectedRole,
         selectedBedId: (_selectedRole == 'staff' || _selectedRole == 'supervisor') ? _selectedBed?.id : null,
-        managedLocationId: (_selectedRole == 'supervisor') ? _selectedLocation?.id : null,
+        managedLocationIds: (_selectedRole == 'supervisor') ? _managedLocationIds : null,
       );
       
       final successMsg = '✓ $_selectedRole account created and bed assigned for $name ($id)';
@@ -142,6 +148,7 @@ class _UsersScreenState extends State<UsersScreen> {
         _selectedLocation = null;
         _selectedRoom = null;
         _selectedBed = null;
+        _managedLocationIds = [];
         _rooms = [];
         _beds = [];
       });
@@ -273,12 +280,52 @@ class _UsersScreenState extends State<UsersScreen> {
                     _selectedLocation = null;
                     _selectedRoom = null;
                     _selectedBed = null;
+                    _managedLocationIds = [];
                     _rooms = [];
                     _beds = [];
                   });
                 }
               },
             ),
+            if (_selectedRole == 'supervisor') ...[
+              const SizedBox(height: 14),
+              Text('Managed Locations (Supervisor Only)',
+                  style: GoogleFonts.inter(
+                      color: AppTheme.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: provider.locations.map((loc) {
+                  final isSelected = _managedLocationIds.contains(loc.id);
+                  return FilterChip(
+                    label: Text(loc.id, style: GoogleFonts.inter(fontSize: 12)),
+                    selected: isSelected,
+                    selectedColor: AppTheme.primary.withOpacity(0.2),
+                    checkmarkColor: AppTheme.primary,
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _managedLocationIds.add(loc.id);
+                        } else {
+                          _managedLocationIds.remove(loc.id);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 14),
+              const Divider(color: AppTheme.divider),
+              const SizedBox(height: 8),
+              Text('Accommodation Assignment',
+                  style: GoogleFonts.inter(
+                      color: AppTheme.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+            ],
             if (_selectedRole == 'staff' || _selectedRole == 'supervisor') ...[
               const SizedBox(height: 14),
               DropdownButtonFormField<LocationModel>(

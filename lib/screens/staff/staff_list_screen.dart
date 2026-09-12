@@ -61,14 +61,15 @@ class _StaffListScreenState extends State<StaffListScreen>
       try {
         final rolesResp = await Supabase.instance.client
             .from('user_roles')
-            .select('user_id, role, location:locations(name)')
+            .select('user_id, role, location_ids')
             .eq('role', 'supervisor');
             
         final supervisorRoles = <String, String>{};
         for (final r in rolesResp) {
           final uid = r['user_id'] as String;
-          final locName = (r['location'] as Map?)?['name'] as String? ?? 'No Location';
-          supervisorRoles[uid] = locName;
+          final locIds = (r['location_ids'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+          final locNames = provider.locations.where((l) => locIds.contains(l.id)).map((l) => l.name).join(', ');
+          supervisorRoles[uid] = locNames.isNotEmpty ? locNames : 'No Location';
         }
 
         _supervisors = _staff.where((s) => s.authUserId != null && supervisorRoles.containsKey(s.authUserId)).map((s) {
