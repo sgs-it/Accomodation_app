@@ -372,7 +372,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     // Form fields for creating a new staff account
     final staffIdCtrl = TextEditingController();
     final nameCtrl = TextEditingController();
-    final passwordCtrl = TextEditingController(text: bed.bedCode);
     bool isCreatingNew = unassigned.isEmpty;
     bool isSaving = false;
 
@@ -509,15 +508,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                       hintText: 'e.g. John Doe',
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: passwordCtrl,
-                    style: const TextStyle(color: AppTheme.textPrimary),
-                    decoration: const InputDecoration(
-                      labelText: 'Initial Password',
-                      helperText: 'Default is Bed Code',
-                    ),
-                  ),
                 ],
               ],
             ),
@@ -536,10 +526,16 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                           if (isCreatingNew) {
                             final sId = staffIdCtrl.text.trim();
                             final name = nameCtrl.text.trim();
-                            final pass = passwordCtrl.text.trim();
-                            if (sId.isEmpty || name.isEmpty || pass.isEmpty) {
+                            final pass = 'SGS$sId';
+                            if (sId.isEmpty || name.isEmpty) {
                               ScaffoldMessenger.of(dCtx).showSnackBar(
                                 const SnackBar(content: Text('Please fill all fields for the new staff account')),
+                              );
+                              return;
+                            }
+                            if (pass.length < 6) {
+                              ScaffoldMessenger.of(dCtx).showSnackBar(
+                                const SnackBar(content: Text('Staff ID must be at least 3 characters')),
                               );
                               return;
                             }
@@ -692,7 +688,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     final bedCodeCtrl = TextEditingController(text: bed.bedCode);
     final nameCtrl = TextEditingController(text: bed.occupant?.name ?? '');
     final staffIdCtrl = TextEditingController(text: bed.occupant?.staffId ?? '');
-    final passCtrl = TextEditingController();
     String currentPosition = bed.position ?? 'LB';
     bool isSaving = false;
 
@@ -744,17 +739,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                   hintText: 'Enter ID',
                 ),
               ),
-              if (!bed.isOccupied) ...[
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: passCtrl,
-                  style: const TextStyle(color: AppTheme.textPrimary),
-                  decoration: const InputDecoration(
-                    labelText: 'Password (Required for new staff)',
-                    hintText: 'Min 6 chars',
-                  ),
-                ),
-              ],
             ],
           ),
           actions: [
@@ -767,7 +751,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 final newBedCode = bedCodeCtrl.text.trim();
                 final newName = nameCtrl.text.trim();
                 final newStaffId = staffIdCtrl.text.trim();
-                final pass = passCtrl.text.trim();
+                final pass = 'SGS$newStaffId';
 
                 if (newBedCode.isEmpty) {
                   ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Bed ID cannot be empty')));
@@ -804,7 +788,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                          return;
                       }
                       if (pass.length < 6) {
-                         if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Password must be at least 6 characters')));
+                         if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Password must be at least 6 characters (e.g. Staff ID must be at least 3 chars)')));
                          setS(() => isSaving = false);
                          return;
                       }
