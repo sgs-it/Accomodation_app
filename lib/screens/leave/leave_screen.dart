@@ -1011,6 +1011,37 @@ class _LeaveCard extends StatelessWidget {
     }
     final initials = getInitials(staff.name);
 
+    final returnedButton = isAdmin && onMarkReturned != null
+        ? Container(
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.success.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ElevatedButton.icon(
+              onPressed: onMarkReturned,
+              icon: const Icon(Icons.flight_land_rounded,
+                  size: 16, color: Colors.white),
+              label: const Text('Returned',
+                  style: TextStyle(fontSize: 12, color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                // Override the app theme's full-width form-button minimum.
+                minimumSize: const Size(0, 48),
+                backgroundColor: AppTheme.success,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          )
+        : null;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -1026,7 +1057,8 @@ class _LeaveCard extends StatelessWidget {
           )
         ],
       ),
-      child: Row(
+      child: LayoutBuilder(builder: (context, constraints) {
+        final details = Row(
         children: [
           Container(
             width: 48, height: 48,
@@ -1063,31 +1095,27 @@ class _LeaveCard extends StatelessWidget {
               ],
             ),
           ),
-          if (isAdmin && onMarkReturned != null)
-            Container(
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.success.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  )
-                ],
-              ),
-              child: ElevatedButton.icon(
-                onPressed: onMarkReturned,
-                icon: const Icon(Icons.flight_land_rounded, size: 16, color: Colors.white),
-                label: const Text('Returned', style: TextStyle(fontSize: 12, color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.success,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-              ),
-            ),
         ],
-      ),
+        );
+        if (returnedButton == null) return details;
+        if (constraints.maxWidth < 480) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              details,
+              const SizedBox(height: 12),
+              Align(alignment: Alignment.centerRight, child: returnedButton),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: details),
+            const SizedBox(width: 16),
+            returnedButton,
+          ],
+        );
+      }),
     );
   }
 }

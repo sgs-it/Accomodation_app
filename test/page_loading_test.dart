@@ -7,8 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
+import 'package:staff_accommodation_app/core/theme.dart';
 import 'package:staff_accommodation_app/models/staff.dart';
 import 'package:staff_accommodation_app/providers/app_provider.dart';
+import 'package:staff_accommodation_app/screens/leave/leave_screen.dart';
 import 'package:staff_accommodation_app/screens/staff/staff_list_screen.dart';
 import 'package:staff_accommodation_app/services/auth_service.dart';
 import 'package:staff_accommodation_app/services/location_service.dart';
@@ -107,6 +109,17 @@ void main() {
                 },
             ]);
           case 'staff':
+            if (request.url.queryParameters['status'] == 'eq.On Leave') {
+              return response(request, [
+                {
+                  'id': 'leave-1',
+                  'staff_id': 'S123456',
+                  'name': staffName,
+                  'status': 'On Leave',
+                  'nationality': 'India',
+                },
+              ]);
+            }
             if (select == 'id') {
               return response(request, [
                 {'id': 'leave-1'},
@@ -194,6 +207,52 @@ void main() {
       responseGate!.complete();
     }
   });
+
+  for (final width in [320.0, 390.0, 1280.0]) {
+    for (final scale in [1.0, 1.5]) {
+      testWidgets('leave details fit at width $width and text scale $scale',
+          (tester) async {
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        staffName = 'Syed Adil Hussain Sha Mohamed';
+        final provider = _AdminProvider();
+        addTearDown(provider.dispose);
+        await tester.pumpWidget(
+          ChangeNotifierProvider<AppProvider>.value(
+            value: provider,
+            child: MaterialApp(
+              theme: AppTheme.dark,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                    textScaler: TextScaler.linear(scale)),
+                child: child!,
+              ),
+              home: const LeaveScreen(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.text('1 on leave'), findsOneWidget);
+        final nameRect = tester.getRect(find.text(staffName));
+        final buttonRect = tester.getRect(find.widgetWithText(ElevatedButton, 'Returned'));
+        expect(nameRect.width, greaterThan(140));
+        expect(nameRect.height, lessThan(150 * scale));
+        expect(buttonRect.right, lessThanOrEqualTo(width - 20));
+        expect(buttonRect.width, lessThan(200));
+        if (width < 480) {
+          expect(buttonRect.top, greaterThan(nameRect.bottom));
+        } else {
+          expect(buttonRect.left, greaterThan(nameRect.right));
+        }
+        expect(requests, hasLength(1));
+        expect(requests.single.method, 'GET');
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+    }
+  }
 
   test(
     'location and bed reads start together and preserve occupancy counts',
