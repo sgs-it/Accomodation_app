@@ -14,10 +14,18 @@ class StaffService {
     }
 
     final response = await query.order('name');
-    var staff = (response as List)
+    final staff = (response as List)
         .map((e) => StaffModel.fromJson(e as Map<String, dynamic>))
         .toList();
 
+    return filter(staff, search: search);
+  }
+
+  /// Apply the directory's existing filters without fetching the same staff again.
+  static List<StaffModel> filter(List<StaffModel> staff, {String? search, String? status}) {
+    if (status != null && status.isNotEmpty) {
+      staff = staff.where((s) => s.status == status).toList();
+    }
     if (search != null && search.trim().isNotEmpty) {
       final q = search.toLowerCase();
       staff = staff
@@ -29,7 +37,7 @@ class StaffService {
           .toList();
     }
 
-    return staff;
+    return List<StaffModel>.of(staff);
   }
 
   Future<List<StaffModel>> getOnLeave() async {

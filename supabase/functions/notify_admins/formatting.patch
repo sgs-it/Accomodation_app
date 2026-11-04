@@ -1,0 +1,14 @@
+--- index.ts (deployed version 3)
++++ index.ts (push formatting only)
+@@
+ import { JWT } from "npm:google-auth-library@9";
++import { toPushText } from "./push_message.mjs";
+@@
+     const { title, body } = await req.json();
++    const pushBody = toPushText(body);
+@@
+               notification: {
+                 title: title,
+-                body: body
++                body: pushBody
+               },

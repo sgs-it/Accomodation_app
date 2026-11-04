@@ -30,6 +30,10 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
   List<ShiftHistoryModel> _shifts = [];
   List<PendingChange> _myPending = [];
   late TabController _tabs;
+  DateTimeRange? _dateRange;
+  bool _oldestFirst = false;
+  String? _loadError;
+  int _loadVersion = 0;
 
   @override
   void initState() {
@@ -45,16 +49,132 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    if (!mounted) return;
+    final version = ++_loadVersion;
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
     final provider = context.read<AppProvider>();
-    if (provider.role == UserRole.unknown) {
-      await provider.init();
+    try {
+      if (provider.role == UserRole.unknown) {
+        await provider.init();
+      }
+      if (!mounted || version != _loadVersion) return;
+      final isAdmin = provider.isAdmin;
+      final shifts = await _shiftService.getAll(
+        startDate: isAdmin ? _dateRange?.start : null,
+        endDate: isAdmin ? _dateRange?.end : null,
+        ascending: isAdmin && _oldestFirst,
+      );
+      final pending = provider.isStaff || provider.isSupervisor
+          ? await provider.pendingService.getMyChanges()
+          : <PendingChange>[];
+      if (!mounted || version != _loadVersion) return;
+      setState(() {
+        _shifts = shifts;
+        _myPending = pending;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted || version != _loadVersion) return;
+      setState(() {
+        _loading = false;
+        _loadError = 'Could not load shift details. Please try again.';
+      });
     }
-    _shifts = await _shiftService.getAll();
-    if (provider.isStaff || provider.isSupervisor) {
-      _myPending = await provider.pendingService.getMyChanges();
+  }
+
+  Future<void> _pickDateRange() async {
+    if (!context.read<AppProvider>().isAdmin) return;
+    final today = DateUtils.dateOnly(DateTime.now());
+    // Include the full range of dates already present in the history.
+    var firstDate = DateTime(2020);
+    var lastDate = today;
+    for (final shift in _shifts) {
+      final date = DateUtils.dateOnly(shift.shiftDate);
+      if (date.isBefore(firstDate)) firstDate = date;
+      if (date.isAfter(lastDate)) lastDate = date;
     }
-    setState(() => _loading = false);
+    if (_dateRange != null) {
+      if (_dateRange!.start.isBefore(firstDate)) firstDate = _dateRange!.start;
+      if (_dateRange!.end.isAfter(lastDate)) lastDate = _dateRange!.end;
+    }
+    final picked = await showDialog<DateTimeRange>(
+      context: context,
+      builder: (_) => _ShiftDateRangeDialog(
+        initialRange: _dateRange ?? DateTimeRange(
+          start: DateTime(today.year, today.month),
+          end: today,
+        ),
+        firstDate: firstDate,
+        lastDate: lastDate,
+      ),
+    );
+    if (!mounted || picked == null || !context.read<AppProvider>().isAdmin) return;
+    setState(() => _dateRange = picked);
+    await _load();
+  }
+
+  void _clearDateRange() {
+    if (!context.read<AppProvider>().isAdmin) return;
+    setState(() => _dateRange = null);
+    _load();
+  }
+
+  Widget _buildAdminControls() {
+    final dateFormat = DateFormat('dd MMM yyyy');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          OutlinedButton.icon(
+            onPressed: _loading ? null : _pickDateRange,
+            style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primary),
+            icon: const Icon(Icons.date_range_outlined, size: 18),
+            label: Text(_dateRange == null
+                ? 'Filter by date'
+                : '${dateFormat.format(_dateRange!.start)} – ${dateFormat.format(_dateRange!.end)}'),
+          ),
+          PopupMenuButton<bool>(
+            enabled: !_loading,
+            initialValue: _oldestFirst,
+            tooltip: 'Sort by shift date',
+            onSelected: (oldestFirst) {
+              if (!context.read<AppProvider>().isAdmin) return;
+              setState(() => _oldestFirst = oldestFirst);
+              _load();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: false, child: Text('Newest first')),
+              PopupMenuItem(value: true, child: Text('Oldest first')),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.sort, size: 18, color: AppTheme.primary),
+                  const SizedBox(width: 6),
+                  Text(_oldestFirst ? 'Oldest first' : 'Newest first',
+                      style: const TextStyle(color: Colors.black87)),
+                  const Icon(Icons.arrow_drop_down, size: 18, color: Colors.black54),
+                ],
+              ),
+            ),
+          ),
+          if (_dateRange != null)
+            TextButton.icon(
+              onPressed: _loading ? null : _clearDateRange,
+              icon: const Icon(Icons.clear, size: 18),
+              label: const Text('Clear filter'),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -144,6 +264,8 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
               ),
             ),
 
+          if (isAdmin) _buildAdminControls(),
+
           Expanded(
             child: Transform.translate(
               offset: Offset(0, isStaff ? -10 : -20),
@@ -152,6 +274,20 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
                       padding: EdgeInsets.all(20),
                       child: Column(children: [SkeletonCard(), SkeletonCard()]),
                     )
+                  : _loadError != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(_loadError!, textAlign: TextAlign.center,
+                                    style: const TextStyle(color: Colors.black87)),
+                                TextButton(onPressed: _load, child: const Text('Retry')),
+                              ],
+                            ),
+                          ),
+                        )
                   : isStaff
                       ? TabBarView(
                           controller: _tabs,
@@ -191,8 +327,19 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
       backgroundColor: Colors.white,
       onRefresh: _load,
       child: _shifts.isEmpty
-          ? _EmptyShifts()
+          ? LayoutBuilder(
+              builder: (_, constraints) => ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: constraints.maxHeight,
+                    child: _EmptyShifts(filtered: isAdmin && _dateRange != null),
+                  ),
+                ],
+              ),
+            )
           : ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 80),
               itemCount: _shifts.length,
               itemBuilder: (ctx, i) => _ShiftCard(
@@ -549,6 +696,142 @@ class _ShiftHistoryScreenState extends State<ShiftHistoryScreen>
   }
 }
 
+class _ShiftDateRangeDialog extends StatefulWidget {
+  const _ShiftDateRangeDialog({
+    required this.initialRange,
+    required this.firstDate,
+    required this.lastDate,
+  });
+
+  final DateTimeRange initialRange;
+  final DateTime firstDate;
+  final DateTime lastDate;
+
+  @override
+  State<_ShiftDateRangeDialog> createState() => _ShiftDateRangeDialogState();
+}
+
+class _ShiftDateRangeDialogState extends State<_ShiftDateRangeDialog> {
+  late DateTime _start = widget.initialRange.start;
+  late DateTime _end = widget.initialRange.end;
+
+  void _changeDate(bool isStart, {int? day, int? month, int? year}) {
+    final current = isStart ? _start : _end;
+    final nextYear = year ?? current.year;
+    final nextMonth = month ?? current.month;
+    final lastDay = DateUtils.getDaysInMonth(nextYear, nextMonth);
+    final requestedDay = day ?? current.day;
+    final next = DateTime(nextYear, nextMonth,
+        requestedDay > lastDay ? lastDay : requestedDay);
+    setState(() {
+      if (isStart) {
+        _start = next;
+      } else {
+        _end = next;
+      }
+    });
+  }
+
+  Widget _dateFields(String label, bool isStart) {
+    final date = isStart ? _start : _end;
+    final prefix = isStart ? 'start' : 'end';
+
+    Widget field(String part, int value, List<DropdownMenuItem<int>> items,
+        ValueChanged<int?> onChanged) {
+      return Expanded(
+        flex: part == 'day' ? 2 : 3,
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: '${part[0].toUpperCase()}${part.substring(1)}',
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              key: ValueKey('shift-$prefix-$part'),
+              value: value,
+              isExpanded: true,
+              iconSize: 16,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 14),
+              menuMaxHeight: 280,
+              items: items,
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        Row(children: [
+          field('day', date.day, [
+            for (var day = 1; day <= DateUtils.getDaysInMonth(date.year, date.month); day++)
+              DropdownMenuItem(value: day, child: Text('$day')),
+          ], (day) => _changeDate(isStart, day: day)),
+          const SizedBox(width: 8),
+          field('month', date.month, [
+            for (var month = 1; month <= 12; month++)
+              DropdownMenuItem(value: month,
+                  child: Text(DateFormat('MMM').format(DateTime(2000, month)))),
+          ], (month) => _changeDate(isStart, month: month)),
+          const SizedBox(width: 8),
+          field('year', date.year, [
+            for (var year = widget.lastDate.year; year >= widget.firstDate.year; year--)
+              DropdownMenuItem(value: year, child: Text('$year')),
+          ], (year) => _changeDate(isStart, year: year)),
+        ]),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String? error;
+    if (_start.isAfter(_end)) {
+      error = 'Start date must be on or before end date.';
+    } else if (_start.isBefore(widget.firstDate) || _end.isAfter(widget.lastDate)) {
+      final format = DateFormat('dd MMM yyyy');
+      error = 'Choose dates between ${format.format(widget.firstDate)} and ${format.format(widget.lastDate)}.';
+    } else {
+      error = null;
+    }
+
+    return AlertDialog(
+      title: const Text('Filter by shift date'),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      scrollable: true,
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _dateFields('Start date', true),
+            const SizedBox(height: 20),
+            _dateFields('End date', false),
+            if (error != null) ...[
+              const SizedBox(height: 12),
+              Text(error, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: error == null
+              ? () => Navigator.pop(context, DateTimeRange(start: _start, end: _end))
+              : null,
+          child: const Text('Apply'),
+        ),
+      ],
+    );
+  }
+}
+
 class _ShiftCard extends StatelessWidget {
   final ShiftHistoryModel shift;
   final bool isAdmin;
@@ -629,6 +912,10 @@ class _ShiftCard extends StatelessWidget {
 }
 
 class _EmptyShifts extends StatelessWidget {
+  final bool filtered;
+
+  const _EmptyShifts({this.filtered = false});
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -637,11 +924,12 @@ class _EmptyShifts extends StatelessWidget {
         children: [
           const Icon(Icons.swap_horiz_rounded, color: AppTheme.textMuted, size: 56),
           const SizedBox(height: 16),
-          Text('No shift records yet',
+          Text(filtered ? 'No shifts in this date range' : 'No shift records yet',
               style: GoogleFonts.inter(
-                  color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+                  color: filtered ? Colors.black87 : AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          Text('Tap + to log a room change',
+          Text(filtered ? 'Choose another range or clear the filter' : 'Tap + to log a room change',
               style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 13)),
         ],
       ),

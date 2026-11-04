@@ -1,0 +1,41 @@
+--- a/index.ts
++++ b/index.ts
+@@ -98,15 +98,20 @@
+-    // 4. Send Email fallback to sgsit2024@gmail.com
+-    await fetch("https://api.resend.com/emails", {
+-      method: "POST",
+-      headers: {
+-        "Content-Type": "application/json",
+-        "Authorization": `Bearer ${RESEND_API_KEY}`
+-      },
+-      body: JSON.stringify({
+-        from: "Accommodation Notifications <onboarding@resend.dev>", 
+-        to: "sgsit2024@gmail.com",
+-        reply_to: "sgsit2024@gmail.com",
+-        subject: title,
+-        html: `<h2>${title}</h2><p>${body}</p>`
+-      })
+-    });
++    // 4. Send Email fallback to sgsit2024@gmail.com
++    // Use the existing fallback until the new queue is explicitly enabled.
++    const { data: queuedEmailEnabled, error: queuedEmailError } = await supabaseAdmin.rpc('accommodation_email_enabled');
++    if (queuedEmailError) console.error('Could not read queued email routing status');
++    if (!queuedEmailEnabled || queuedEmailError) {
++    await fetch("https://api.resend.com/emails", {
++      method: "POST",
++      headers: {
++        "Content-Type": "application/json",
++        "Authorization": `Bearer ${RESEND_API_KEY}`
++      },
++      body: JSON.stringify({
++        from: "Accommodation Notifications <onboarding@resend.dev>", 
++        to: "sgsit2024@gmail.com",
++        reply_to: "sgsit2024@gmail.com",
++        subject: title,
++        html: `<h2>${title}</h2><p>${body}</p>`
++      })
++    });
++    }
+@@ -117,1 +122,1 @@
+-      emailSentTo: "sgsit2024@gmail.com" 
++      emailSentTo: queuedEmailEnabled && !queuedEmailError ? "current admins via queue" : "sgsit2024@gmail.com"
