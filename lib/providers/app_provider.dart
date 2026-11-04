@@ -58,6 +58,7 @@ class AppProvider extends ChangeNotifier {
   int get pendingCount => _pendingCount;
 
   RealtimeChannel? _pendingChangesChannel;
+  Future<void>? _locationsLoad;
 
   void _setLoading(bool v) {
     _loading = v;
@@ -102,7 +103,7 @@ class AppProvider extends ChangeNotifier {
       if (isStaff || isSupervisor) {
         _myStaffRecord = await _authService.getMyStaffRecord();
       }
-      await loadLocations();
+      await loadLocations(reuseInFlight: true);
       if (isAdmin || isSupervisor) {
         await refreshPendingCount();
         _setupRealtimePendingChanges();
@@ -114,8 +115,26 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadLocations() async {
-    _locations = await _locationService.getAll();
+  Future<void> loadLocations({bool reuseInFlight = false}) {
+    // Navigation may share a read; explicit refreshes and changes always get a new one.
+    if (reuseInFlight && _locationsLoad != null) return _locationsLoad!;
+    late final Future<void> read;
+    read = _fetchLocations().whenComplete(() {
+      if (identical(_locationsLoad, read)) _locationsLoad = null;
+    });
+    _locationsLoad = read;
+    return read;
+  }
+
+  Future<void> _fetchLocations() async {
+    await Future.wait<void>([
+      () async { _locations = await _locationService.getAll(); }(),
+      _loadOnLeaveCount(),
+    ]);
+    notifyListeners();
+  }
+
+  Future<void> _loadOnLeaveCount() async {
     try {
       final staffLeaveResp = await Supabase.instance.client
           .from('staff')
@@ -125,7 +144,6 @@ class AppProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error fetching on leave staff count: $e');
     }
-    notifyListeners();
   }
 
   Future<void> loadRoomsForLocation(String locationId) async {
@@ -133,7 +151,7 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> loadStaff({
+  Future<List<StaffModel>> loadStaff({
     String? search,
     String? status,
     String? locationId,
@@ -144,6 +162,7 @@ class AppProvider extends ChangeNotifier {
       locationId: locationId,
     );
     notifyListeners();
+    return _staff;
   }
 
   Future<void> loadShifts({String? staffId}) async {

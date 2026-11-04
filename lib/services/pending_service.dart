@@ -92,15 +92,13 @@ class PendingService {
   Future<List<PendingChange>> getAll({String? status}) async {
     var query = _client
         .from('pending_changes')
-        .select()
-        .order('created_at', ascending: false);
+        .select();
 
-    final data = await query;
-    var list = data.map((j) => PendingChange.fromJson(j)).toList();
     if (status != null) {
-      list = list.where((c) => c.status == status).toList();
+      query = query.eq('status', status);
     }
-    return list;
+    final data = await query.order('created_at', ascending: false);
+    return data.map((j) => PendingChange.fromJson(j)).toList();
   }
 
   /// Get pending changes submitted by the current user

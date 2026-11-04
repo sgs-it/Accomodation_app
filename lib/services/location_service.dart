@@ -7,20 +7,18 @@ class LocationService {
   final _client = Supabase.instance.client;
 
   Future<List<LocationModel>> getAll() async {
-    final response = await _client
-        .from('locations')
-        .select()
-        .order('name');
+    // These reads are independent; don't pay for two network round trips in sequence.
+    final results = await Future.wait([
+      _client.from('locations').select().order('name'),
+      _client.from('beds').select('status, room_id, rooms!inner(location_id)'),
+    ]);
+    final response = results[0];
+    final bedsResp = results[1];
 
     final locations = (response as List)
         .map((e) => LocationModel.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    // Optimize: fetch all beds with their location_id in a single query
-    final bedsResp = await _client
-        .from('beds')
-        .select('status, room_id, rooms!inner(location_id)');
-        
     final Map<String, Map<String, int>> locStats = {};
     for (final loc in locations) {
       locStats[loc.id] = {'total': 0, 'occupied': 0, 'vacant': 0, 'on_leave': 0};

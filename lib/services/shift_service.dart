@@ -6,7 +6,12 @@ import '../models/shift_history.dart';
 class ShiftService {
   final _client = Supabase.instance.client;
 
-  Future<List<ShiftHistoryModel>> getAll({String? staffId}) async {
+  Future<List<ShiftHistoryModel>> getAll({
+    String? staffId,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool ascending = false,
+  }) async {
     var query = _client
         .from('shift_history')
         .select('*, staff(name, staff_id), from_bed:from_bed_id(bed_code), to_bed:to_bed_id(bed_code)');
@@ -15,7 +20,21 @@ class ShiftService {
       query = query.eq('staff_id', staffId);
     }
 
-    final response = await query.order('shift_date', ascending: false);
+    // shift_date is a Postgres date: include both selected calendar days.
+    if (startDate != null) {
+      query = query.gte(
+        'shift_date',
+        startDate.toIso8601String().split('T').first,
+      );
+    }
+    if (endDate != null) {
+      query = query.lte(
+        'shift_date',
+        endDate.toIso8601String().split('T').first,
+      );
+    }
+
+    final response = await query.order('shift_date', ascending: ascending);
 
     return (response as List)
         .map((e) => ShiftHistoryModel.fromJson(e as Map<String, dynamic>))

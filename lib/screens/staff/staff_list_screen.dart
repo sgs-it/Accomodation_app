@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../models/staff.dart';
 import '../../providers/app_provider.dart';
 import '../../services/staff_service.dart';
+import '../../services/auth_service.dart';
 import '../../services/pending_service.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/stat_card.dart';
@@ -25,6 +26,9 @@ class _StaffListScreenState extends State<StaffListScreen>
   final _searchCtrl = TextEditingController();
   bool _loading = false;
   List<StaffModel> _staff = [];
+  List<StaffModel> _allStaff = [];
+  Map<String, String> _supervisorLocations = {};
+  int _loadVersion = 0;
   List<PendingChange> _myPending = [];
   // staffId -> list of pending changes
   Map<String, List<PendingChange>> _pendingByStaff = {};
@@ -37,9 +41,8 @@ class _StaffListScreenState extends State<StaffListScreen>
   @override
   void initState() {
     super.initState();
-    final provider = context.read<AppProvider>();
     _tabController = TabController(length: 2, vsync: this);
-    _load();
+    _load(reuseLocationRead: true);
   }
 
   @override
@@ -49,101 +52,129 @@ class _StaffListScreenState extends State<StaffListScreen>
     super.dispose();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool reuseLocationRead = false}) async {
+    if (!mounted) return;
+    final version = ++_loadVersion;
     setState(() => _loading = true);
     final provider = context.read<AppProvider>();
-    _staff = await StaffService().getAll(
-      search: _searchCtrl.text.trim(),
-      status: _statusFilter.isEmpty ? null : _statusFilter,
-    );
+    try {
+      if (provider.role == UserRole.unknown) await provider.init();
+      if (!mounted || version != _loadVersion) return;
+      final isAdmin = provider.isAdmin;
+      final locationsRead = isAdmin
+          ? provider.loadLocations(reuseInFlight: reuseLocationRead)
+          : Future<void>.value();
+      List<StaffModel> staff = [];
+      List<PendingChange> pending = [];
+      List<PendingChange> myPending = [];
+      var supervisors = _supervisorLocations;
+      var admins = _admins;
+      var unassignedCount = _unassignedCount;
 
-    if (provider.isAdmin || provider.isSupervisor) {
-      try {
-        final rolesResp = await Supabase.instance.client
+      // Only await dependencies. Fetch staff once and share it with the provider.
+      await Future.wait<void>([
+        () async {
+          staff = isAdmin ? await provider.loadStaff() : await StaffService().getAll();
+        }(),
+        if (isAdmin || provider.isSupervisor)
+          () async { supervisors = await _loadSupervisorLocations(provider, locationsRead); }(),
+        if (isAdmin) ...[
+          () async { pending = await provider.pendingService.getAll(status: 'pending'); }(),
+          () async { admins = await _loadAdmins(); }(),
+          () async { unassignedCount = await _loadUnassignedCount(); }(),
+        ] else if (provider.isStaff)
+          () async { myPending = await provider.pendingService.getMyChanges(); }(),
+        locationsRead,
+      ]);
+
+      if (!mounted || version != _loadVersion) return;
+      setState(() {
+        _allStaff = staff;
+        _supervisorLocations = supervisors;
+        _admins = admins;
+        _unassignedCount = unassignedCount;
+        _myPending = myPending;
+        _pendingByStaff = {};
+        for (final change in pending) {
+          final sid = change.payload['staff_id']?.toString() ?? '';
+          _pendingByStaff.putIfAbsent(sid, () => []).add(change);
+        }
+        _applyStaffFilters();
+      });
+    } catch (e) {
+      if (mounted && version == _loadVersion) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not load staff details. Pull down to retry.')),
+        );
+      }
+    } finally {
+      if (mounted && version == _loadVersion) setState(() => _loading = false);
+    }
+  }
+
+  void _applyStaffFilters() {
+    _staff = StaffService.filter(_allStaff,
+        search: _searchCtrl.text.trim(), status: _statusFilter);
+    _supervisors = _staff
+        .where((s) => s.authUserId != null && _supervisorLocations.containsKey(s.authUserId))
+        .map((s) => <String, dynamic>{
+          'id': s.authUserId,
+          'name': s.name,
+          'email': s.staffId,
+          'location': _supervisorLocations[s.authUserId],
+        }).toList();
+  }
+
+  Future<Map<String, String>> _loadSupervisorLocations(
+      AppProvider provider, Future<void> locationsRead) async {
+    try {
+      final rolesResp = await Supabase.instance.client
             .from('user_roles')
             .select('user_id, role, location_ids')
             .eq('role', 'supervisor');
-            
-        final supervisorRoles = <String, String>{};
-        for (final r in rolesResp) {
-          final uid = r['user_id'] as String;
-          final locIds = (r['location_ids'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
-          final locNames = provider.locations.where((l) => locIds.contains(l.id)).map((l) => l.name).join(', ');
-          supervisorRoles[uid] = locNames.isNotEmpty ? locNames : 'No Location';
-        }
-
-        _supervisors = _staff.where((s) => s.authUserId != null && supervisorRoles.containsKey(s.authUserId)).map((s) {
-          return {
-            'id': s.authUserId,
-            'name': s.name,
-            'email': s.staffId,
-            'location': supervisorRoles[s.authUserId],
-          };
-        }).toList();
-      } catch (e) {
-        debugPrint('Error fetching supervisors: $e');
+      await locationsRead;
+      final supervisorRoles = <String, String>{};
+      for (final r in rolesResp) {
+        final uid = r['user_id'] as String;
+        final locIds = (r['location_ids'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+        final locNames = provider.locations.where((l) => locIds.contains(l.id)).map((l) => l.name).join(', ');
+        supervisorRoles[uid] = locNames.isNotEmpty ? locNames : 'No Location';
       }
+      return supervisorRoles;
+    } catch (e) {
+      debugPrint('Error fetching supervisors: $e');
+      return _supervisorLocations;
     }
+  }
 
-    if (provider.isAdmin) {
-      // Load ALL pending changes and group by staff
-      final all = await provider.pendingService.getAll(status: 'pending');
-      _pendingByStaff = {};
-      for (final c in all) {
-        final sid = c.payload['staff_id']?.toString() ?? '';
-        _pendingByStaff.putIfAbsent(sid, () => []).add(c);
+  Future<List<Map<String, dynamic>>> _loadAdmins() async {
+    try {
+      final res = await Supabase.instance.client.rpc('get_admin_users');
+      return res == null ? _admins : List<Map<String, dynamic>>.from(
+          (res as List).map((x) => Map<String, dynamic>.from(x)));
+    } catch (e) {
+      debugPrint('Error fetching admins: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to load admins: $e'),
+          backgroundColor: AppTheme.danger,
+          duration: const Duration(seconds: 10),
+        ));
       }
-      try {
-        final res = await Supabase.instance.client.rpc('get_admin_users');
-        if (res != null) {
-          _admins = List<Map<String, dynamic>>.from(
-              (res as List).map((x) => Map<String, dynamic>.from(x)));
-        }
-      } catch (e) {
-        debugPrint('Error fetching admins: $e');
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to load admins: $e'),
-              backgroundColor: AppTheme.danger,
-              duration: const Duration(seconds: 10),
-            ),
-          );
-        }
-      }
-      try {
-        // Unassigned = On Leave staff with no bed assignment
-        final uData = await Supabase.instance.client
-            .from('staff')
-            .select('id')
-            .eq('status', 'On Leave');
-        
-        if (uData.isEmpty) {
-          _unassignedCount = 0;
-        } else {
-          final staffIds = uData.map((s) => s['id']).toList();
-          final activeAssignments = await Supabase.instance.client
-              .from('bed_assignments')
-              .select('staff_id')
-              .inFilter('staff_id', staffIds);
-              
-          final assignedStaffIds = activeAssignments.map((a) => a['staff_id']).toSet();
-          int count = 0;
-          for (final row in uData) {
-            if (!assignedStaffIds.contains(row['id'])) count++;
-          }
-          _unassignedCount = count;
-        }
-      } catch (e) {
-        debugPrint('Error fetching unassigned: $e');
-      }
-      // Also refresh provider so dashboard/other screens stay in sync
-      await provider.loadStaff();
-      await provider.loadLocations();
-    } else if (provider.isStaff) {
-      _myPending = await provider.pendingService.getMyChanges();
+      return _admins;
     }
-    setState(() => _loading = false);
+  }
+
+  Future<int> _loadUnassignedCount() async {
+    try {
+      // Keep the same definition: on-leave staff with no visible bed assignment.
+      final data = await Supabase.instance.client.from('staff')
+          .select('id, bed_assignments(staff_id)').eq('status', 'On Leave');
+      return data.where((s) => (s['bed_assignments'] as List).isEmpty).length;
+    } catch (e) {
+      debugPrint('Error fetching unassigned: $e');
+      return _unassignedCount;
+    }
   }
 
   @override
@@ -416,7 +447,7 @@ class _StaffListScreenState extends State<StaffListScreen>
                                       icon: const Icon(Icons.clear, color: Colors.black38),
                                       onPressed: () {
                                         _searchCtrl.clear();
-                                        _load();
+                                        setState(_applyStaffFilters);
                                       },
                                     )
                                   : null,
@@ -425,7 +456,7 @@ class _StaffListScreenState extends State<StaffListScreen>
                               fillColor: Colors.transparent,
                               contentPadding: const EdgeInsets.symmetric(vertical: 16),
                             ),
-                            onChanged: (_) => _load(),
+                            onChanged: (_) => setState(_applyStaffFilters),
                           ),
                         ),
                         const SizedBox(height: 24),
