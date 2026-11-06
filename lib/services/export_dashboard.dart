@@ -209,7 +209,10 @@ class ExportDashboard {
     // Reserve space for both charts before appending the original room table.
   }
 
-  List<int> addCharts(List<int> bytes) {
+  List<int> addCharts(
+    List<int> bytes, {
+    Map<String, String> summaryLinks = const {},
+  }) {
     final zip = ZipDecoder().decodeBytes(bytes);
     String read(String path) =>
         utf8.decode(zip.findFile(path)!.content as List<int>);
@@ -232,6 +235,37 @@ class ExportDashboard {
     final target = rel.getAttribute('Target')!;
     final path = target.startsWith('/') ? target.substring(1) : 'xl/$target';
     final sheet = XmlDocument.parse(read(path));
+    final hyperlinks = XmlElement(XmlName('hyperlinks'), [], [
+      for (final link in summaryLinks.entries)
+        XmlElement(XmlName('hyperlink'), [
+          XmlAttribute(XmlName('ref'), link.key),
+          XmlAttribute(XmlName('location'), link.value),
+          XmlAttribute(XmlName('tooltip'), 'Open worksheet'),
+        ]),
+    ]);
+    // OOXML places hyperlinks after cell/formatting data and before page settings.
+    const following = {
+      'printOptions',
+      'pageMargins',
+      'pageSetup',
+      'headerFooter',
+      'rowBreaks',
+      'colBreaks',
+      'customProperties',
+      'cellWatches',
+      'ignoredErrors',
+      'smartTags',
+      'drawing',
+      'legacyDrawing',
+      'extLst',
+    };
+    final next = sheet.rootElement.children.indexWhere(
+      (n) => n is XmlElement && following.contains(n.name.local),
+    );
+    sheet.rootElement.children.insert(
+      next < 0 ? sheet.rootElement.children.length : next,
+      hyperlinks,
+    );
     sheet.rootElement.setAttribute(
       'xmlns:r',
       'http://schemas.openxmlformats.org/officeDocument/2006/relationships',

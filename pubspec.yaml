@@ -2,7 +2,7 @@ name: staff_accommodation_app
 description: "Staff Accommodation Management App — Automate room, bed, and staff tracking."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.12.2
