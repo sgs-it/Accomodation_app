@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
+import { contractChecks } from './contract_test.mjs';
 
 // A real, isolated Postgres engine. Vault/net/cron are local no-network stubs.
 // These tests never connect to Supabase or modify production accommodation data.
@@ -150,6 +151,7 @@ try {
   const rls = (await db.query("select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='email_notifications' and c.relkind='r'")).rows;
   check(rls.length === 3 && rls.every(r => r.relrowsecurity), 'RLS is enabled on every new queue table');
 
+  await contractChecks(db);
   await db.exec(`create or replace function email_notifications.enqueue(p_key text,p_kind text,p_payload jsonb,p_target uuid default null)
     returns void language plpgsql set search_path='' as $$ begin raise exception 'Simulated queue failure'; end $$;`);
   await db.query('insert into public.staff values($1,\'Still created\',\'S500\',\'Active\',null)', [uuid(500)]);

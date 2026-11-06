@@ -4,6 +4,19 @@ Email automation is **enabled** in production project `bhmzebuvksntosaogzet` as 
 The notification migration, `accommodation-email-worker` version 3, and the queue-routing
 patch in `notify_admins` version 6 are deployed. JWT verification on `notify_admins` remains enabled.
 
+On 2026-11-06 the worker was updated to version 4 and migration
+`20261106092552_contract_expiry_email_reminders.sql` was applied for contract reminders.
+Cron job `accommodation-contract-expiry-reminders` runs at 09:00 Asia/Kolkata daily
+(`30 3 * * *` UTC). It queues an email per room/contract exactly 10 and 5 calendar days
+before `rooms.contract_expiry`. Existing and future admins are resolved at delivery time
+through the existing admin-recipient logic; no static mailing list is needed.
+Each email identifies location, room, contract number, expiry date and days remaining.
+The deduplication key includes the room, contract number, expiry date and threshold.
+Renewed, changed or deleted contracts invalidate queued reminders before delivery.
+Dates without a contract expiry, already-expired dates and other day ranges are skipped;
+past reminder dates are not backfilled. Existing contract records are never updated.
+Deployment verification found zero contracts due today and sent no test emails.
+
 Live checks passed: Brevo `/v3/senders` and `/v3/account` both returned HTTP 200,
 `sgsit2024@gmail.com` is verified, and the transactional relay is enabled. The authenticated
 worker returned HTTP 200 with `accepted:0` for the empty queue. The minutely dispatcher is active.
@@ -40,6 +53,7 @@ objects and anonymous access to the notification RPCs remain denied.
 | Staff marked On Leave, including approval that changes their status | All current administrators |
 | Staff/supervisor account or staff record created | All current administrators |
 | Staff account or record deleted, including Auth cascade deletion | All current administrators |
+| Contract expiry in 10 days or 5 days | All current administrators |
 
 Request and completion messages are separate events. Welcome emails never contain passwords.
 No historical records are backfilled. Account creation does not require adding each admin to a Brevo contact list.

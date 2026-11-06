@@ -74,6 +74,20 @@ test('welcome message identifies the new admin rather than broadcasting their lo
   assert.ok(!message.textContent.includes(recipients[1].email));
 });
 
+test('contract reminders identify the location, room, expiry and both thresholds safely', () => {
+  for (const days of [10, 5]) {
+    const message = renderEmail({ ...event, kind: 'contract_expiry_reminder', payload: {
+      days_before: days, location_name: 'East <script>alert(1)</script> & West',
+      room_number: 'R001', contract_number: 'C123', expiry_date: '2026-12-01',
+    } }, recipients[0], config);
+    assert.ok(message.subject.includes(`in ${days} days`));
+    for (const detail of ['R001', 'C123', '2026-12-01']) assert.ok(message.textContent.includes(detail));
+    assert.ok(!message.htmlContent.includes('<script>'));
+  }
+  assert.throws(() => renderEmail({ ...event, kind: 'contract_expiry_reminder',
+    payload: { days_before: 3 } }, recipients[0], config));
+});
+
 test('rejects unknown templates and unsafe login URLs', () => {
   assert.throws(() => renderEmail({ ...event, kind: 'unknown' }, recipients[0], config));
   assert.throws(() => renderEmail(event, recipients[0], { ...config, site_url: 'javascript:alert(1)' }));
