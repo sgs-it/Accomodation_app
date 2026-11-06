@@ -154,6 +154,45 @@ void main() {
       expect(detail[1][1]?.value, TextCellValue('Example Staff 1'));
       expect(detail[2][5]?.value, TextCellValue('VACATION'));
       final archive = ZipDecoder().decodeBytes(bytes);
+      final styles = XmlDocument.parse(
+        utf8.decode(archive.findFile('xl/styles.xml')!.content as List<int>),
+      );
+      for (final name in [
+        'fonts',
+        'fills',
+        'borders',
+        'cellStyleXfs',
+        'cellXfs',
+      ]) {
+        final table = styles.findAllElements(name).single;
+        expect(
+          int.parse(table.getAttribute('count')!),
+          table.childElements.length,
+          reason: name,
+        );
+      }
+      final fillCount = styles
+          .findAllElements('fills')
+          .single
+          .childElements
+          .length;
+      for (final xf in styles.findAllElements('xf')) {
+        expect(
+          int.parse(xf.getAttribute('fillId') ?? '0'),
+          lessThan(fillCount),
+        );
+      }
+      for (final color in styles.descendants.whereType<XmlElement>().where(
+        (e) => e.getAttribute('rgb') != null,
+      )) {
+        expect(color.getAttribute('rgb'), matches(RegExp(r'^FF[0-9A-F]{6}$')));
+      }
+      expect(
+        styles
+            .findAllElements('patternFill')
+            .any((p) => p.getAttribute('patternType') == 'lightGray'),
+        isFalse,
+      );
       final links = archive.files
           .where(
             (f) =>
@@ -222,10 +261,25 @@ void main() {
         TextCellValue('LOCATION | Main & East'),
       );
       expect(
-        summary.cell(CellIndex.indexByString('B30')).cellStyle!.fontColor,
+        summary.cell(CellIndex.indexByString('B30')).cellStyle!.backgroundColor,
         isNot(
-          summary.cell(CellIndex.indexByString('C30')).cellStyle!.fontColor,
+          summary
+              .cell(CellIndex.indexByString('C30'))
+              .cellStyle!
+              .backgroundColor,
         ),
+      );
+      expect(
+        summary.cell(CellIndex.indexByString('A29')).cellStyle!.fontColor,
+        ExcelColor.white,
+      );
+      expect(
+        summary.cell(CellIndex.indexByString('A30')).cellStyle!.fontColor,
+        ExcelColor.white,
+      );
+      expect(
+        summary.cell(CellIndex.indexByString('B30')).cellStyle!.fontColor,
+        ExcelColor.white,
       );
       Directory('build').createSync(recursive: true);
       File('build/export_dashboard_example.xlsx').writeAsBytesSync(bytes);

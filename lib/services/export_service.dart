@@ -211,7 +211,8 @@ class ExportService {
       summarySheet
           .cell(CellIndex.indexByString(roomCell))
           .cellStyle = CellStyle(
-        fontColorHex: ExcelColor.fromHexString('246BCE'),
+        fontColorHex: ExportDashboard.cellColor('93C5FD'),
+        backgroundColorHex: ExportDashboard.cellColor('1F2937'),
         underline: Underline.Single,
         bold: true,
       );
@@ -321,7 +322,7 @@ class ExportService {
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: 0))
           .cellStyle = CellStyle(
-        backgroundColorHex: ExcelColor.fromHexString('6D28D9'),
+        backgroundColorHex: ExportDashboard.cellColor('111827'),
         fontColorHex: ExcelColor.white,
         bold: true,
         fontSize: 12,
@@ -359,10 +360,10 @@ class ExportService {
         sheet
             .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: i + 1))
             .cellStyle = CellStyle(
-          backgroundColorHex: ExcelColor.fromHexString(
-            i.isEven ? 'F3EEFF' : 'FFFFFF',
+          backgroundColorHex: ExportDashboard.cellColor(
+            i.isEven ? '1F2937' : '293548',
           ),
-          fontColorHex: ExcelColor.fromHexString(c == 7 ? '6D28D9' : '172033'),
+          fontColorHex: ExcelColor.white,
           bold: c == 7,
           textWrapping: TextWrapping.WrapText,
         );
