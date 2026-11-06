@@ -6,6 +6,7 @@ const TITLES = {
   leave_request: 'New Leave Request',
   room_shift_logged: 'Room Shift Logged',
   leave_started: 'Staff Marked On Leave',
+  contract_expiry_reminder: 'Accommodation Contract Expiry Reminder',
 };
 
 export function escapeHtml(value) {
@@ -15,11 +16,15 @@ export function escapeHtml(value) {
 }
 
 export function renderEmail(event, recipient, config) {
-  const subject = TITLES[event.kind];
+  let subject = TITLES[event.kind];
   if (!subject) throw new Error('Unsupported email event');
   const url = new URL(config.site_url);
   if (url.protocol !== 'https:') throw new Error('Email login URL must use HTTPS');
   const data = event.payload ?? {};
+  if (event.kind === 'contract_expiry_reminder') {
+    if (![10, 5].includes(data.days_before)) throw new Error('Unsupported contract reminder threshold');
+    subject = `Contract expires in ${data.days_before} days | ${data.location_name || 'Location'} | Room ${data.room_number || ''}`;
+  }
   const lines = [];
   if (event.kind === 'admin_welcome') {
     lines.push(`Hello ${recipient.display_name || 'Administrator'},`,
@@ -27,6 +32,13 @@ export function renderEmail(event, recipient, config) {
       `Login email: ${recipient.email}`,
       'You will receive future accommodation alerts at this email address.',
       'Use the password provided separately by your company administrator.');
+  } else if (event.kind === 'contract_expiry_reminder') {
+    lines.push(`This accommodation contract expires in ${data.days_before} days.`,
+      `Location: ${data.location_name || 'Not specified'}`,
+      `Room: ${data.room_number || 'Not specified'}`,
+      `Contract number: ${data.contract_number || 'Not specified'}`,
+      `Expiry date: ${data.expiry_date}`,
+      'Please review the contract and arrange renewal if required.');
   } else {
     const fields = [
       ['Staff name', data.staff_name], ['Staff ID', data.staff_id],

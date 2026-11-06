@@ -1,22 +1,109 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:universal_html/html.dart' as html;
+import 'export_dashboard.dart';
 
 class ExportService {
   final _client = Supabase.instance.client;
 
   Future<void> exportData() async {
+    // Read fresh data for every export, independently of cached screen totals.
+    final locResp = await _allRows(
+      (start, end) => _client
+          .from('locations')
+          .select()
+          .order('name')
+          .order('id')
+          .range(start, end),
+    );
+    final roomsResp = await _allRows(
+      (start, end) => _client
+          .from('rooms')
+          .select('*, beds(*, bed_assignments(*, staff(*)))')
+          .order('location_id')
+          .order('room_number')
+          .order('id')
+          .range(start, end),
+    );
+    final leaveResp = await _allRows(
+      (start, end) => _client
+          .from('staff')
+          .select('id')
+          .eq('status', 'On Leave')
+          .order('id')
+          .range(start, end),
+    );
+    final generatedAt = DateTime.now();
+    final bytes = buildWorkbook(
+      locationsData: locResp,
+      roomsData: roomsResp,
+      onLeaveStaff: leaveResp.length,
+      generatedAt: generatedAt,
+    );
+    final timestamp = generatedAt
+        .toIso8601String()
+        .replaceAll(':', '-')
+        .split('.')[0];
+    final fileName = 'Staff_Accommodation_Plan_$timestamp.xlsx';
+    if (kIsWeb) {
+      final blob = html.Blob([
+        bytes,
+      ], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', fileName)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } else {
+      final tempDir = await getTemporaryDirectory();
+      final path = '${tempDir.path}/$fileName';
+      await File(path).writeAsBytes(bytes);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(
+              path,
+              mimeType:
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ),
+          ],
+          text: 'Staff Accommodation Plan Export',
+        ),
+      );
+    }
+  }
+
+  // Avoid silently truncating a large export at the Data API's default row limit.
+  static Future<List<dynamic>> _allRows(
+    Future<List<dynamic>> Function(int start, int end) page,
+  ) async {
+    final rows = <dynamic>[];
+    const pageSize = 500;
+    for (var start = 0; ; start += pageSize) {
+      final batch = await page(start, start + pageSize - 1);
+      rows.addAll(batch);
+      if (batch.length < pageSize) return rows;
+    }
+  }
+
+  static List<int> buildWorkbook({
+    required List<dynamic> locationsData,
+    required List<dynamic> roomsData,
+    required int onLeaveStaff,
+    required DateTime generatedAt,
+  }) {
     final excel = Excel.createExcel();
-    
+
     // Rename default sheet to Summary
     final String defaultSheet = excel.getDefaultSheet() ?? 'Sheet1';
     excel.rename(defaultSheet, 'Summary');
     final Sheet summarySheet = excel['Summary'];
+    final dashboard = ExportDashboard(locationsData, roomsData, onLeaveStaff);
+    dashboard.write(summarySheet, generatedAt);
 
     // Header for Summary sheet
     summarySheet.appendRow([
@@ -34,31 +121,23 @@ class ExportService {
     ]);
 
     // Fetch all locations to get the managers and emirates
-    final locResp = await _client.from('locations').select();
     final locations = {
-      for (var l in locResp) 
+      for (var l in locationsData)
         l['id'] as String: {
           'name': l['name'] as String,
           'manager_name': l['manager_name'] as String?,
           'city': l['city'] as String?,
-        }
+        },
     };
-
-    // Fetch all rooms with beds and staff assignments
-    final roomsResp = await _client.from('rooms').select(
-      '*, beds(*, bed_assignments(*, staff(*)))'
-    ).order('location_id').order('room_number');
-
-    final List<dynamic> roomsData = roomsResp as List<dynamic>;
 
     for (var room in roomsData) {
       final locId = room['location_id'] as String;
       final locInfo = locations[locId] ?? {};
       final emirate = locInfo['city'] ?? locId;
       final managedBy = locInfo['manager_name'] ?? '';
-      
+
       final bedsList = room['beds'] as List<dynamic>? ?? [];
-      
+
       // Calculate occupied and available counts based purely on actual beds
       int capacity = bedsList.length;
       int occupied = 0;
@@ -73,14 +152,14 @@ class ExportService {
       }
 
       final contractExpiry = room['contract_expiry'] as String?;
-      
+
       String contractStatus = 'Valid';
       if (contractExpiry != null) {
         final expiryDate = DateTime.tryParse(contractExpiry);
         if (expiryDate != null) {
-          if (expiryDate.isBefore(DateTime.now())) {
+          if (expiryDate.isBefore(generatedAt)) {
             contractStatus = 'Expired';
-          } else if (expiryDate.difference(DateTime.now()).inDays < 90) {
+          } else if (expiryDate.difference(generatedAt).inDays < 90) {
             contractStatus = 'Expiring Soon';
           }
         }
@@ -104,14 +183,15 @@ class ExportService {
       ]);
 
       // Create a sheet for this room
-      final String roomSheetName = 'Room ${room['room_number']}-${locId.substring(0, locId.length > 2 ? 2 : locId.length)}';
-      
+      final String roomSheetName =
+          'Room ${room['room_number']}-${locId.substring(0, locId.length > 2 ? 2 : locId.length)}';
+
       // Prevent duplicate sheet names or name too long
       String safeName = roomSheetName.replaceAll(RegExp(r'[\\/?*[\]]'), '-');
       if (safeName.length > 31) {
         safeName = safeName.substring(0, 31);
       }
-      
+
       final Sheet roomSheet = excel[safeName];
       roomSheet.appendRow([
         TextCellValue('Bed ID'),
@@ -132,7 +212,7 @@ class ExportService {
       for (var bed in bedsList) {
         String occupantName = '';
         String occupantId = '';
-        
+
         final assignments = bed['bed_assignments'];
         if (assignments != null) {
           Map<String, dynamic>? assignmentObj;
@@ -141,7 +221,7 @@ class ExportService {
           } else if (assignments is Map<String, dynamic>) {
             assignmentObj = assignments;
           }
-          
+
           if (assignmentObj != null && assignmentObj['staff'] != null) {
             final staffObj = assignmentObj['staff'] as Map<String, dynamic>;
             occupantName = staffObj['name']?.toString() ?? '';
@@ -153,7 +233,9 @@ class ExportService {
           TextCellValue(bed['bed_code']?.toString() ?? ''),
           TextCellValue(occupantName),
           TextCellValue(occupantId),
-          TextCellValue('${room['room_code']}-${bed['bed_number']?.toString().padLeft(3, '0') ?? ''}'),
+          TextCellValue(
+            '${room['room_code']}-${bed['bed_number']?.toString().padLeft(3, '0') ?? ''}',
+          ),
           TextCellValue(bed['position']?.toString() ?? 'LB'),
           TextCellValue(bed['status']?.toString() ?? 'VACANT'),
         ]);
@@ -166,26 +248,6 @@ class ExportService {
       throw Exception('Failed to generate Excel file.');
     }
 
-    final String timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
-    final String fileName = 'Staff_Accommodation_Plan_$timestamp.xlsx';
-
-    if (kIsWeb) {
-      // Web download
-      final blob = html.Blob([bytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', fileName)
-        ..click();
-      html.Url.revokeObjectUrl(url);
-    } else {
-      // Mobile share
-      final tempDir = await getTemporaryDirectory();
-      final String path = '${tempDir.path}/$fileName';
-      final File file = File(path);
-      await file.writeAsBytes(bytes);
-
-      final xFile = XFile(path, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      await Share.shareXFiles([xFile], text: 'Staff Accommodation Plan Export');
-    }
+    return dashboard.addCharts(bytes);
   }
 }
