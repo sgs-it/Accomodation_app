@@ -32,8 +32,9 @@ class ExportService {
     final leaveResp = await _allRows(
       (start, end) => _client
           .from('staff')
-          .select('id')
+          .select('id, staff_id, name, status, phone, nationality')
           .eq('status', 'On Leave')
+          .order('name')
           .order('id')
           .range(start, end),
     );
@@ -41,7 +42,7 @@ class ExportService {
     final bytes = buildWorkbook(
       locationsData: locResp,
       roomsData: roomsResp,
-      onLeaveStaff: leaveResp.length,
+      leaveStaffData: leaveResp,
       generatedAt: generatedAt,
     );
     final timestamp = generatedAt
@@ -93,7 +94,7 @@ class ExportService {
   static List<int> buildWorkbook({
     required List<dynamic> locationsData,
     required List<dynamic> roomsData,
-    required int onLeaveStaff,
+    required List<dynamic> leaveStaffData,
     required DateTime generatedAt,
   }) {
     final excel = Excel.createExcel();
@@ -102,7 +103,19 @@ class ExportService {
     final String defaultSheet = excel.getDefaultSheet() ?? 'Sheet1';
     excel.rename(defaultSheet, 'Summary');
     final Sheet summarySheet = excel['Summary'];
-    final dashboard = ExportDashboard(locationsData, roomsData, onLeaveStaff);
+    final summaryLinks = <String, String>{
+      'J4': "'leave'!A1",
+      'J5': "'leave'!A1",
+    };
+    final onLeave =
+        leaveStaffData.where((s) => s['status'] == 'On Leave').toList()..sort(
+          (a, b) => (a['name'] ?? '').toString().toLowerCase().compareTo(
+            (b['name'] ?? '').toString().toLowerCase(),
+          ),
+        );
+    // Create this before the room sheets so it is always the second tab.
+    _writeLeaveSheet(excel['leave'], onLeave, locationsData, roomsData);
+    final dashboard = ExportDashboard(locationsData, roomsData, onLeave.length);
     dashboard.write(summarySheet, generatedAt);
 
     // Header for Summary sheet
@@ -193,6 +206,16 @@ class ExportService {
       }
 
       final Sheet roomSheet = excel[safeName];
+      final roomCell = 'C${summarySheet.maxRows}';
+      summaryLinks[roomCell] = "'${safeName.replaceAll("'", "''")}'!A1";
+      summarySheet
+          .cell(CellIndex.indexByString(roomCell))
+          .cellStyle = CellStyle(
+        fontColorHex: ExportDashboard.cellColor('93C5FD'),
+        backgroundColorHex: ExportDashboard.cellColor('1F2937'),
+        underline: Underline.Single,
+        bold: true,
+      );
       roomSheet.appendRow([
         TextCellValue('Bed ID'),
         TextCellValue('Occupant Name'),
@@ -248,6 +271,106 @@ class ExportService {
       throw Exception('Failed to generate Excel file.');
     }
 
-    return dashboard.addCharts(bytes);
+    return dashboard.addCharts(bytes, summaryLinks: summaryLinks);
+  }
+
+  static void _writeLeaveSheet(
+    Sheet sheet,
+    List<dynamic> staff,
+    List<dynamic> locations,
+    List<dynamic> rooms,
+  ) {
+    final locationNames = {for (final l in locations) l['id']: l['name']};
+    final assignments = <String, List<Map<String, String>>>{};
+    for (final room in rooms) {
+      for (final bed in room['beds'] as List? ?? []) {
+        final raw = bed['bed_assignments'];
+        final rows = raw is List ? raw : (raw is Map ? [raw] : []);
+        for (final assignment in rows) {
+          final occupant = assignment['staff'];
+          if (occupant is! Map) continue;
+          final key = (occupant['id'] ?? occupant['staff_id'])?.toString();
+          if (key == null) continue;
+          assignments.putIfAbsent(key, () => []).add({
+            'location':
+                (locationNames[room['location_id']] ??
+                        room['location_id'] ??
+                        '')
+                    .toString(),
+            'room': (room['room_number'] ?? '').toString(),
+            'bed': (bed['bed_code'] ?? '').toString(),
+          });
+        }
+      }
+    }
+    const headers = [
+      'Staff ID',
+      'Staff Name',
+      'Nationality',
+      'Phone',
+      'Location',
+      'Room No',
+      'Bed ID',
+      'Status',
+    ];
+    sheet.appendRow(headers.map(TextCellValue.new).toList());
+    for (var c = 0; c < headers.length; c++) {
+      sheet.setColumnWidth(
+        c,
+        [18.0, 34.0, 20.0, 22.0, 30.0, 18.0, 22.0, 18.0][c],
+      );
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: 0))
+          .cellStyle = CellStyle(
+        backgroundColorHex: ExportDashboard.cellColor('111827'),
+        fontColorHex: ExcelColor.white,
+        bold: true,
+        fontSize: 12,
+      );
+    }
+    sheet.setRowHeight(0, 30);
+    for (var i = 0; i < staff.length; i++) {
+      final person = staff[i];
+      final places =
+          assignments[person['id']?.toString()] ??
+          assignments[person['staff_id']?.toString()] ??
+          [];
+      String place(String field) => places.isEmpty
+          ? 'Unassigned'
+          : places
+                .map((p) => p[field]!)
+                .where((v) => v.isNotEmpty)
+                .toSet()
+                .join(', ');
+      sheet.appendRow([
+        for (final value in [
+          person['staff_id'],
+          person['name'],
+          person['nationality'],
+          person['phone'],
+          place('location'),
+          place('room'),
+          place('bed'),
+          person['status'],
+        ])
+          TextCellValue(value?.toString() ?? ''),
+      ]);
+      sheet.setRowHeight(i + 1, 30);
+      for (var c = 0; c < headers.length; c++) {
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: i + 1))
+            .cellStyle = CellStyle(
+          backgroundColorHex: ExportDashboard.cellColor(
+            i.isEven ? '1F2937' : '293548',
+          ),
+          fontColorHex: ExcelColor.white,
+          bold: c == 7,
+          textWrapping: TextWrapping.WrapText,
+        );
+      }
+    }
+    if (staff.isEmpty) {
+      sheet.appendRow([TextCellValue('No staff currently on leave')]);
+    }
   }
 }

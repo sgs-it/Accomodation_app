@@ -11,6 +11,10 @@ class ExportDashboard {
   final Map<String, List<int>> counts = {};
   late int chartEndRow;
   static const colors = ['246BCE', 'EF3434', '10B981', '8B5CF6'];
+  static const darkFills = ['1E3A5F', '682C3C', '145445', '4C2875'];
+
+  // excel 4.x requires opaque ARGB; six-digit RGB can leave dangling fill IDs.
+  static ExcelColor cellColor(String rgb) => ExcelColor.fromHexString('FF$rgb');
 
   ExportDashboard(
     List<dynamic> locationRows,
@@ -67,7 +71,7 @@ class ExportDashboard {
     }
 
     final heading = CellStyle(
-      backgroundColorHex: ExcelColor.fromHexString('172B55'),
+      backgroundColorHex: cellColor('111827'),
       fontColorHex: ExcelColor.white,
       bold: true,
       fontSize: 18,
@@ -84,12 +88,12 @@ class ExportDashboard {
       TextCellValue(
         'Exported: ${generatedAt.toIso8601String()} (device local time) | Current snapshot',
       ),
-      CellStyle(fontSize: 11, fontColorHex: ExcelColor.fromHexString('64748B')),
+      CellStyle(fontSize: 11, fontColorHex: cellColor('475569')),
     );
     final labels = ['Total Beds', 'Occupied', 'Vacant', 'On Leave (staff)'];
     for (var i = 0; i < 4; i++) {
       final style = CellStyle(
-        backgroundColorHex: ExcelColor.fromHexString(colors[i]),
+        backgroundColorHex: cellColor(darkFills[i]),
         fontColorHex: ExcelColor.white,
         bold: true,
         fontSize: 28,
@@ -130,9 +134,7 @@ class ExportDashboard {
       cell.value = TextCellValue(header[c]);
       cell.cellStyle = heading.copyWith(
         fontSizeVal: 11,
-        backgroundColorHexVal: ExcelColor.fromHexString(
-          c == 0 ? '172B55' : colors[c - 1],
-        ),
+        backgroundColorHexVal: cellColor(c == 0 ? '111827' : darkFills[c - 1]),
       );
     }
     sheet.setColumnWidth(0, 26);
@@ -149,7 +151,8 @@ class ExportDashboard {
           .cellStyle = CellStyle(
         bold: true,
         fontSize: 12,
-        backgroundColorHex: ExcelColor.fromHexString('EFF4FC'),
+        backgroundColorHex: cellColor('1F2937'),
+        fontColorHex: ExcelColor.white,
       );
       sheet.setRowHeight(29 + i, 28);
       for (var c = 0; c < 4; c++) {
@@ -168,10 +171,8 @@ class ExportDashboard {
           bold: true,
           fontSize: 14,
           horizontalAlign: HorizontalAlign.Center,
-          fontColorHex: ExcelColor.fromHexString(colors[c]),
-          backgroundColorHex: ExcelColor.fromHexString(
-            ['EAF2FF', 'FFF0F0', 'E6F8F0', 'F2ECFF'][c],
-          ),
+          fontColorHex: ExcelColor.white,
+          backgroundColorHex: cellColor(darkFills[c]),
         );
       }
     }
@@ -209,7 +210,10 @@ class ExportDashboard {
     // Reserve space for both charts before appending the original room table.
   }
 
-  List<int> addCharts(List<int> bytes) {
+  List<int> addCharts(
+    List<int> bytes, {
+    Map<String, String> summaryLinks = const {},
+  }) {
     final zip = ZipDecoder().decodeBytes(bytes);
     String read(String path) =>
         utf8.decode(zip.findFile(path)!.content as List<int>);
@@ -217,6 +221,28 @@ class ExportDashboard {
       final data = utf8.encode(value);
       zip.addFile(ArchiveFile(path, data.length, data));
     }
+
+    final styles = XmlDocument.parse(read('xl/styles.xml'));
+    // The library's reserved second fill uses a non-OOXML name.
+    for (final pattern in styles.findAllElements('patternFill')) {
+      if (pattern.getAttribute('patternType') == 'lightGray') {
+        pattern.setAttribute('patternType', 'gray125');
+      }
+    }
+    for (final name in [
+      'fonts',
+      'fills',
+      'borders',
+      'cellStyleXfs',
+      'cellXfs',
+    ]) {
+      final table = styles.findAllElements(name).single;
+      if (int.parse(table.getAttribute('count')!) !=
+          table.childElements.length) {
+        throw StateError('Invalid Excel style table: $name');
+      }
+    }
+    put('xl/styles.xml', styles.toXmlString());
 
     // Resolve the Summary relationship instead of assuming a sheet number.
     final book = XmlDocument.parse(read('xl/workbook.xml'));
@@ -232,6 +258,37 @@ class ExportDashboard {
     final target = rel.getAttribute('Target')!;
     final path = target.startsWith('/') ? target.substring(1) : 'xl/$target';
     final sheet = XmlDocument.parse(read(path));
+    final hyperlinks = XmlElement(XmlName('hyperlinks'), [], [
+      for (final link in summaryLinks.entries)
+        XmlElement(XmlName('hyperlink'), [
+          XmlAttribute(XmlName('ref'), link.key),
+          XmlAttribute(XmlName('location'), link.value),
+          XmlAttribute(XmlName('tooltip'), 'Open worksheet'),
+        ]),
+    ]);
+    // OOXML places hyperlinks after cell/formatting data and before page settings.
+    const following = {
+      'printOptions',
+      'pageMargins',
+      'pageSetup',
+      'headerFooter',
+      'rowBreaks',
+      'colBreaks',
+      'customProperties',
+      'cellWatches',
+      'ignoredErrors',
+      'smartTags',
+      'drawing',
+      'legacyDrawing',
+      'extLst',
+    };
+    final next = sheet.rootElement.children.indexWhere(
+      (n) => n is XmlElement && following.contains(n.name.local),
+    );
+    sheet.rootElement.children.insert(
+      next < 0 ? sheet.rootElement.children.length : next,
+      hyperlinks,
+    );
     sheet.rootElement.setAttribute(
       'xmlns:r',
       'http://schemas.openxmlformats.org/officeDocument/2006/relationships',

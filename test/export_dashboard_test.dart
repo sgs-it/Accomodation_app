@@ -55,7 +55,28 @@ void main() {
       final bytes = ExportService.buildWorkbook(
         locationsData: locations,
         roomsData: rooms,
-        onLeaveStaff: 2,
+        leaveStaffData: [
+          {
+            'id': '2',
+            'staff_id': 'S2',
+            'name': 'Example Staff 2',
+            'status': 'On Leave',
+            'phone': '0501234567',
+            'nationality': 'India',
+          },
+          {
+            'id': 'unassigned',
+            'staff_id': 'S9',
+            'name': 'Unassigned Staff',
+            'status': 'On Leave',
+          },
+          {
+            'id': 'active',
+            'staff_id': 'S10',
+            'name': 'Active Staff',
+            'status': 'Active',
+          },
+        ],
         generatedAt: DateTime(2026, 11, 6, 12),
       );
       final excel = Excel.decodeBytes(bytes);
@@ -98,13 +119,112 @@ void main() {
         IntCellValue(1),
         TextCellValue('Manager'),
       ]);
-      expect(excel.tables.keys, ['Summary', 'Room 101-AA', 'Room 102-BB']);
+      expect(excel.tables.keys, [
+        'Summary',
+        'leave',
+        'Room 101-AA',
+        'Room 102-BB',
+      ]);
+      final leave = excel['leave'];
+      expect(leave.rows.length, 3);
+      expect(leave.rows[1].map((c) => c?.value).toList(), [
+        for (final v in [
+          'S2',
+          'Example Staff 2',
+          'India',
+          '0501234567',
+          'Main & East',
+          '101',
+          'B2',
+          'On Leave',
+        ])
+          TextCellValue(v),
+      ]);
+      expect(
+        leave.cell(CellIndex.indexByString('E3')).value,
+        TextCellValue('Unassigned'),
+      );
+      expect(
+        leave.cell(CellIndex.indexByString('H3')).value,
+        TextCellValue('On Leave'),
+      );
       final detail = excel['Room 101-AA'].rows;
       expect(detail.length, 4);
       expect(detail[1][0]?.value, TextCellValue('B1'));
       expect(detail[1][1]?.value, TextCellValue('Example Staff 1'));
       expect(detail[2][5]?.value, TextCellValue('VACATION'));
       final archive = ZipDecoder().decodeBytes(bytes);
+      final styles = XmlDocument.parse(
+        utf8.decode(archive.findFile('xl/styles.xml')!.content as List<int>),
+      );
+      for (final name in [
+        'fonts',
+        'fills',
+        'borders',
+        'cellStyleXfs',
+        'cellXfs',
+      ]) {
+        final table = styles.findAllElements(name).single;
+        expect(
+          int.parse(table.getAttribute('count')!),
+          table.childElements.length,
+          reason: name,
+        );
+      }
+      final fillCount = styles
+          .findAllElements('fills')
+          .single
+          .childElements
+          .length;
+      for (final xf in styles.findAllElements('xf')) {
+        expect(
+          int.parse(xf.getAttribute('fillId') ?? '0'),
+          lessThan(fillCount),
+        );
+      }
+      for (final color in styles.descendants.whereType<XmlElement>().where(
+        (e) => e.getAttribute('rgb') != null,
+      )) {
+        expect(color.getAttribute('rgb'), matches(RegExp(r'^FF[0-9A-F]{6}$')));
+      }
+      expect(
+        styles
+            .findAllElements('patternFill')
+            .any((p) => p.getAttribute('patternType') == 'lightGray'),
+        isFalse,
+      );
+      final links = archive.files
+          .where(
+            (f) =>
+                f.name.startsWith('xl/worksheets/') && f.name.endsWith('.xml'),
+          )
+          .map((f) => XmlDocument.parse(utf8.decode(f.content as List<int>)))
+          .expand((d) => d.findAllElements('hyperlink'))
+          .toList();
+      expect(
+        links
+            .firstWhere((l) => l.getAttribute('ref') == 'J4')
+            .getAttribute('location'),
+        "'leave'!A1",
+      );
+      expect(
+        links
+            .firstWhere((l) => l.getAttribute('ref') == 'J5')
+            .getAttribute('location'),
+        "'leave'!A1",
+      );
+      expect(
+        links
+            .firstWhere((l) => l.getAttribute('ref') == 'C${header + 2}')
+            .getAttribute('location'),
+        "'Room 101-AA'!A1",
+      );
+      expect(
+        links
+            .firstWhere((l) => l.getAttribute('ref') == 'C${header + 3}')
+            .getAttribute('location'),
+        "'Room 102-BB'!A1",
+      );
       for (final file in archive.files.where(
         (f) => f.name.endsWith('.xml') || f.name.endsWith('.rels'),
       )) {
@@ -141,10 +261,25 @@ void main() {
         TextCellValue('LOCATION | Main & East'),
       );
       expect(
-        summary.cell(CellIndex.indexByString('B30')).cellStyle!.fontColor,
+        summary.cell(CellIndex.indexByString('B30')).cellStyle!.backgroundColor,
         isNot(
-          summary.cell(CellIndex.indexByString('C30')).cellStyle!.fontColor,
+          summary
+              .cell(CellIndex.indexByString('C30'))
+              .cellStyle!
+              .backgroundColor,
         ),
+      );
+      expect(
+        summary.cell(CellIndex.indexByString('A29')).cellStyle!.fontColor,
+        ExcelColor.white,
+      );
+      expect(
+        summary.cell(CellIndex.indexByString('A30')).cellStyle!.fontColor,
+        ExcelColor.white,
+      );
+      expect(
+        summary.cell(CellIndex.indexByString('B30')).cellStyle!.fontColor,
+        ExcelColor.white,
       );
       Directory('build').createSync(recursive: true);
       File('build/export_dashboard_example.xlsx').writeAsBytesSync(bytes);
@@ -154,10 +289,15 @@ void main() {
     final bytes = ExportService.buildWorkbook(
       locationsData: [],
       roomsData: [],
-      onLeaveStaff: 0,
+      leaveStaffData: [],
       generatedAt: DateTime(2026, 11, 6),
     );
     final excel = Excel.decodeBytes(bytes);
+    expect(excel.tables.keys.toList()[1], 'leave');
+    expect(
+      excel['leave'].cell(CellIndex.indexByString('A2')).value,
+      TextCellValue('No staff currently on leave'),
+    );
     expect(
       excel['Summary'].cell(CellIndex.indexByString('A4')).value,
       IntCellValue(0),
